@@ -1,0 +1,24 @@
+<div class="game-container">
+  <div #gameCanvas class="game-canvas"></div>
+  <div class="game-controls">
+    @if (gameOver) {
+      <button mat-raised-button color="primary" (click)="requestRematch()" [disabled]="rematchRequested">
+        {{ rematchRequested ? 'Waiting for opponent...' : 'Rematch' }}
+      </button>
+    }
+    <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+  </div>
+
+  <div class="how-to-play">
+    <h3>How to Play</h3>
+    <ul>
+      <li>Click one of your pits to pick up all its stones.</li>
+      <li>Stones are dropped one at a time going counter-clockwise.</li>
+      <li>Your opponent's store is skipped when dropping stones.</li>
+      <li>If your last stone lands in your store, you get an extra turn.</li>
+      <li>If your last stone lands in an empty pit on your side and the opposite pit has stones, you capture both into your store.</li>
+      <li>The game ends when one side is completely empty. Remaining stones go to that side's store.</li>
+      <li>The player with the most stones in their store wins!</li>
+    </ul>
+  </div>
+</div>

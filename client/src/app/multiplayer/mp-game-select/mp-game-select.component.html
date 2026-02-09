@@ -1,0 +1,25 @@
+<div class="mp-page">
+  <div class="game-select-container">
+    <h2 class="section-title">Multiplayer Games</h2>
+    <p class="section-subtitle">Play with friends online</p>
+
+    <div class="games-grid">
+      @for (game of games; track game.id) {
+        <mat-card class="game-card" (click)="selectGame(game.id)">
+          <mat-card-header>
+            <mat-icon mat-card-avatar class="game-icon">{{ game.icon }}</mat-icon>
+            <mat-card-title>{{ game.name }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p>{{ game.description }}</p>
+          </mat-card-content>
+          <mat-card-actions>
+            <button mat-raised-button color="primary">Play Now</button>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  </div>
+
+  <app-players-sidebar></app-players-sidebar>
+</div>

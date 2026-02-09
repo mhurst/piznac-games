@@ -1,0 +1,77 @@
+.mp-page {
+  display: flex;
+  gap: 24px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 80px);
+}
+
+.game-select-container {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-title {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+  color: #e94560;
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 30px;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 900px;
+}
+
+.game-card {
+  background: #16213e !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(233, 69, 96, 0.3);
+  }
+
+  .game-icon {
+    color: #e94560;
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+  }
+
+  mat-card-title {
+    color: #eee;
+  }
+
+  mat-card-content p {
+    color: #888;
+    margin-top: 8px;
+  }
+
+  mat-card-actions {
+    padding: 16px;
+  }
+}
+
+app-players-sidebar {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .mp-page {
+    flex-direction: column;
+  }
+
+  app-players-sidebar {
+    max-width: 100%;
+  }
+}

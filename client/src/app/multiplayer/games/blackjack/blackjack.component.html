@@ -1,0 +1,16 @@
+<div class="game-container">
+  <div #gameCanvas class="game-canvas"></div>
+  <div class="game-controls">
+    @if (gameState?.phase === 'settlement' && !gameOver) {
+      <button mat-raised-button color="primary" (click)="nextRound()">
+        Next Round
+      </button>
+    }
+    @if (gameOver) {
+      <button mat-raised-button color="primary" (click)="requestRematch()" [disabled]="rematchRequested">
+        {{ rematchRequested ? 'Waiting for others...' : 'Rematch' }}
+      </button>
+    }
+    <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+  </div>
+</div>

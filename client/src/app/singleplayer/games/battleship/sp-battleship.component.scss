@@ -1,0 +1,150 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.game-container {
+  width: 100%;
+  min-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a2e;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.setup-panel {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+
+  h2 {
+    color: #e94560;
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+  }
+}
+
+.option-group {
+  margin-bottom: 24px;
+
+  label {
+    display: block;
+    color: #888;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+
+.difficulty-description {
+  margin-bottom: 24px;
+
+  p {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin: 0;
+    padding: 12px;
+    background: rgba(#0f3460, 0.5);
+    border-radius: 8px;
+  }
+}
+
+.difficulty-toggle {
+  width: 100%;
+
+  ::ng-deep {
+    .mat-button-toggle {
+      flex: 1;
+      background: #1a1a2e;
+
+      &.mat-button-toggle-checked {
+        background: #0f3460;
+      }
+
+      .mat-button-toggle-label-content {
+        color: #eee;
+        padding: 8px 16px;
+      }
+    }
+  }
+}
+
+.start-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  font-size: 1.1rem;
+}
+
+.back-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+
+  .player-score {
+    color: #00aa00;
+    font-weight: bold;
+  }
+
+  .divider {
+    color: #444;
+  }
+
+  .ai-score {
+    color: #e94560;
+    font-weight: bold;
+  }
+
+  .difficulty-badge {
+    background: #16213e;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: #888;
+    margin-left: 8px;
+  }
+}
+
+.game-canvas {
+  border-radius: 12px;
+  overflow: hidden;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.game-controls {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.result-message {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-right: 20px;
+
+  &.win {
+    color: #00ff00;
+  }
+
+  &.lose {
+    color: #e94560;
+  }
+}

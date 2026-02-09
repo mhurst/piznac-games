@@ -1,0 +1,166 @@
+.lobby-page {
+  display: flex;
+  gap: 24px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 80px);
+}
+
+.lobby-container {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #eee;
+}
+
+.title {
+  font-size: 2rem;
+  margin-bottom: 30px;
+  color: #e94560;
+  letter-spacing: 3px;
+}
+
+.lobby-options {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.option-card {
+  background: #16213e;
+  border: 2px solid #0f3460;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  min-width: 250px;
+
+  h2 {
+    margin: 0 0 20px 0;
+    font-size: 1.3rem;
+  }
+}
+
+.divider {
+  font-size: 1.2rem;
+  color: #888;
+  font-weight: bold;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border: 2px solid #0f3460;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #eee;
+  font-size: 1rem;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #e94560;
+  }
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-create {
+  background: #e94560;
+  color: white;
+  width: 100%;
+
+  &:hover:not(:disabled) {
+    background: #c73652;
+  }
+}
+
+.btn-join {
+  background: #0f3460;
+  color: white;
+  width: 100%;
+
+  &:hover:not(:disabled) {
+    background: #0a2540;
+  }
+}
+
+.btn-back {
+  margin-top: 30px;
+  background: transparent;
+  color: #888;
+  border: 1px solid #333;
+
+  &:hover {
+    color: #eee;
+    border-color: #888;
+  }
+}
+
+.waiting-room {
+  text-align: center;
+  margin: 40px 0;
+
+  h2 {
+    margin-bottom: 20px;
+  }
+}
+
+.room-code-display {
+  p {
+    color: #888;
+    margin-bottom: 10px;
+  }
+}
+
+.code {
+  font-size: 3rem;
+  font-weight: bold;
+  letter-spacing: 12px;
+  color: #e94560;
+  background: #16213e;
+  padding: 20px 40px;
+  border-radius: 12px;
+  border: 2px solid #0f3460;
+}
+
+.error {
+  color: #e94560;
+  background: rgba(233, 69, 96, 0.1);
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+app-players-sidebar {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .lobby-page {
+    flex-direction: column;
+  }
+
+  app-players-sidebar {
+    max-width: 100%;
+  }
+}

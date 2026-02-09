@@ -1,0 +1,71 @@
+<div class="lobby-page">
+  <div class="lobby-container">
+    <h1 class="title">{{ gameType | uppercase }}</h1>
+
+    @if (!roomCode && !joining) {
+      <div class="lobby-options">
+        <div class="option-card">
+          <h2>Create Game</h2>
+          <input
+            type="text"
+            [(ngModel)]="playerName"
+            placeholder="Your name"
+            class="input"
+            maxlength="20"
+          />
+          <button (click)="createRoom()" class="btn btn-create" [disabled]="!playerName.trim()">
+            Create Room
+          </button>
+        </div>
+
+        <div class="divider">OR</div>
+
+        <div class="option-card">
+          <h2>Join Game</h2>
+          <input
+            type="text"
+            [(ngModel)]="playerName"
+            placeholder="Your name"
+            class="input"
+            maxlength="20"
+          />
+          <input
+            type="text"
+            [(ngModel)]="joinCode"
+            placeholder="Room code"
+            class="input"
+            maxlength="4"
+            (input)="joinCode = joinCode.toUpperCase()"
+          />
+          <button (click)="joinRoom()" class="btn btn-join" [disabled]="!playerName.trim() || !joinCode.trim()">
+            Join Room
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (roomCode && !gameStarted) {
+      <div class="waiting-room">
+        <h2>Waiting for opponent...</h2>
+        <div class="room-code-display">
+          <p>Share this code:</p>
+          <div class="code">{{ roomCode }}</div>
+        </div>
+      </div>
+    }
+
+    @if (joining) {
+      <div class="waiting-room">
+        <h2>Joining room...</h2>
+      </div>
+    }
+
+    @if (error) {
+      <div class="error">{{ error }}</div>
+    }
+
+    <button (click)="goBack()" class="btn btn-back">Back to Games</button>
+  </div>
+
+  <app-players-sidebar></app-players-sidebar>
+</div>

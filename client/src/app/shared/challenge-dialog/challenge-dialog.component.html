@@ -1,0 +1,23 @@
+<div class="challenge-dialog">
+  <div class="icon-header">
+    <mat-icon>sports_esports</mat-icon>
+  </div>
+
+  <h2>Challenge Received!</h2>
+
+  <p class="challenge-text">
+    <strong>{{ challenge.from.name }}</strong> challenges you to
+    <strong>{{ getGameName(challenge.gameType) }}</strong>!
+  </p>
+
+  <div class="actions">
+    <button mat-raised-button color="primary" (click)="accept()">
+      <mat-icon>check</mat-icon>
+      Accept
+    </button>
+    <button mat-stroked-button (click)="decline()">
+      <mat-icon>close</mat-icon>
+      Decline
+    </button>
+  </div>
+</div>

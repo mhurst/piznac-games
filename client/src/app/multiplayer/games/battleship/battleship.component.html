@@ -1,0 +1,21 @@
+<div class="game-container">
+  @if (phase === 'waiting') {
+    <div class="waiting-overlay">
+      <div class="waiting-message">
+        <div class="spinner"></div>
+        <p>Waiting for opponent to finish placing ships...</p>
+      </div>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas"></div>
+
+  <div class="game-controls">
+    @if (gameOver) {
+      <button mat-raised-button color="primary" (click)="requestRematch()" [disabled]="rematchRequested">
+        {{ rematchRequested ? 'Waiting for opponent...' : 'Rematch' }}
+      </button>
+    }
+    <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+  </div>
+</div>

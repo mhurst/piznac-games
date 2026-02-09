@@ -1,0 +1,87 @@
+<div class="players-sidebar">
+  <h3>
+    <mat-icon>people</mat-icon>
+    Online Players
+    <span class="count">({{ users.length }})</span>
+  </h3>
+
+  <div class="players-list">
+    @if (users.length === 0) {
+      <div class="no-players">
+        <mat-icon>hourglass_empty</mat-icon>
+        <span>Waiting for players...</span>
+      </div>
+    }
+
+    @for (user of users; track user.id) {
+      <div class="player-item" [class.is-me]="isMe(user)" [class.in-game]="user.status === 'in-game'">
+        <span
+          class="status-dot"
+          [class.available]="user.status === 'available'"
+          [class.in-game]="user.status === 'in-game'"
+          [matTooltip]="getStatusTooltip(user)"
+        ></span>
+
+        <span class="name">
+          {{ user.name }}
+          @if (isMe(user)) {
+            <span class="you-badge">(you)</span>
+          }
+        </span>
+
+        @if (user.status === 'in-game' && user.gameType && !isMe(user)) {
+          <mat-icon
+            class="game-icon"
+            [matTooltip]="'Playing ' + getGameName(user.gameType)"
+          >{{ getGameIcon(user.gameType) }}</mat-icon>
+        }
+
+        @if (!isMe(user)) {
+          <button
+            mat-icon-button
+            [matMenuTriggerFor]="gameMenu"
+            matTooltip="Challenge to a game"
+            class="challenge-btn"
+          >
+            <mat-icon>sports_esports</mat-icon>
+          </button>
+
+          <mat-menu #gameMenu="matMenu">
+            <button mat-menu-item (click)="challenge(user, 'tic-tac-toe')">
+              <mat-icon>tag</mat-icon>
+              <span>Tic-Tac-Toe</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'connect-four')">
+              <mat-icon>view_comfy</mat-icon>
+              <span>Connect Four</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'battleship')">
+              <mat-icon>sailing</mat-icon>
+              <span>Battleship</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'checkers')">
+              <mat-icon>grid_on</mat-icon>
+              <span>Checkers</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'war')">
+              <mat-icon>style</mat-icon>
+              <span>War</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'farkle')">
+              <mat-icon>casino</mat-icon>
+              <span>Farkle</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'blackjack')">
+              <mat-icon>style</mat-icon>
+              <span>Blackjack</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'mancala')">
+              <mat-icon>blur_circular</mat-icon>
+              <span>Mancala</span>
+            </button>
+          </mat-menu>
+        }
+      </div>
+    }
+  </div>
+</div>

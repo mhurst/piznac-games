@@ -1,0 +1,69 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>War</h2>
+
+      <div class="option-group">
+        <label>Game Mode</label>
+        <mat-button-toggle-group [(ngModel)]="gameMode" class="mode-toggle">
+          <mat-button-toggle value="standard">Standard</mat-button-toggle>
+          <mat-button-toggle value="timed">Timed</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      @if (gameMode === 'timed') {
+        <div class="option-group">
+          <label>Time Limit</label>
+          <mat-button-toggle-group [(ngModel)]="timedMinutes" class="time-toggle">
+            <mat-button-toggle [value]="1">1 min</mat-button-toggle>
+            <mat-button-toggle [value]="3">3 min</mat-button-toggle>
+            <mat-button-toggle [value]="5">5 min</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      }
+
+      <p class="mode-description">
+        @if (gameMode === 'standard') {
+          Play until one player wins all 52 cards.
+        } @else {
+          Most cards when time runs out wins!
+        }
+      </p>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="score-display">
+      <span class="player-score">You: {{ playerScore }}</span>
+      <span class="divider">|</span>
+      <span class="ai-score">Opponent: {{ aiScore }}</span>
+      @if (gameMode === 'timed') {
+        <span class="timer" [class.low-time]="timeRemaining < 30">{{ formattedTime }}</span>
+      }
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      @if (gameOver) {
+        <button mat-raised-button color="primary" (click)="playAgain()">
+          Play Again
+        </button>
+        <button mat-stroked-button (click)="resetScore()">
+          Reset Score
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+</div>

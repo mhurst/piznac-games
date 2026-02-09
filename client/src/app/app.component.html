@@ -1,0 +1,45 @@
+<div class="app-container">
+  <header class="app-header">
+    <h1 class="title" (click)="goHome()">PIZNAC GAMES</h1>
+
+    <nav class="main-nav">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+        <mat-icon>home</mat-icon>
+        <span>Home</span>
+      </a>
+      <a routerLink="/multiplayer" routerLinkActive="active">
+        <mat-icon>groups</mat-icon>
+        <span>Multiplayer</span>
+      </a>
+      <a routerLink="/singleplayer" routerLinkActive="active">
+        <mat-icon>person</mat-icon>
+        <span>Single Player</span>
+      </a>
+    </nav>
+
+    <div class="header-actions">
+      <button
+        mat-icon-button
+        (click)="toggleSound()"
+        [matTooltip]="soundMuted ? 'Unmute' : 'Mute'"
+        class="sound-btn"
+      >
+        <mat-icon>{{ soundMuted ? 'volume_off' : 'volume_up' }}</mat-icon>
+      </button>
+
+      @if (userName) {
+        <div class="user-info">
+          <mat-icon>person</mat-icon>
+          <span class="user-name">{{ userName }}</span>
+          <button mat-icon-button (click)="logout()" matTooltip="Logout" class="logout-btn">
+            <mat-icon>logout</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  </header>
+
+  <main class="app-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

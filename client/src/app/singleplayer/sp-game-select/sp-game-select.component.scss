@@ -1,0 +1,91 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.game-select-container {
+  padding: 40px 20px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.section-title {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+  color: #e94560;
+  text-align: center;
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.game-card {
+  background: #16213e !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover:not(.coming-soon) {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(15, 52, 96, 0.3);
+  }
+
+  &.coming-soon {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .game-icon {
+    color: #0f3460;
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+  }
+
+  mat-card-title {
+    color: #eee;
+  }
+
+  mat-card-content p {
+    color: #888;
+    margin-top: 8px;
+  }
+
+  mat-card-actions {
+    padding: 16px;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #888;
+
+  mat-icon {
+    font-size: 4rem;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    color: #0f3460;
+  }
+
+  p {
+    font-size: 1.2rem;
+  }
+}

@@ -1,0 +1,40 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Blackjack</h2>
+
+      <p class="mode-description">
+        Beat the dealer to 21! Hit to draw cards, Stand to hold,
+        or Double Down to double your bet and get one more card.
+        Blackjack pays 3:2. Start with 1,000 chips.
+      </p>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      <span class="stat">W: {{ wins }}</span>
+      <span class="stat">L: {{ losses }}</span>
+      @if (gameOver) {
+        <button mat-raised-button color="primary" (click)="newGame()">
+          New Game
+        </button>
+      } @else {
+        <button mat-raised-button color="primary" (click)="nextRound()">
+          Next Round
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>

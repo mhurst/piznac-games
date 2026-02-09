@@ -1,0 +1,64 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Battleship vs AI</h2>
+
+      <div class="option-group">
+        <label>Difficulty</label>
+        <mat-button-toggle-group [(ngModel)]="difficulty" class="difficulty-toggle">
+          <mat-button-toggle value="easy">Easy</mat-button-toggle>
+          <mat-button-toggle value="medium">Medium</mat-button-toggle>
+          <mat-button-toggle value="hard">Hard</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <div class="difficulty-description">
+        @if (difficulty === 'easy') {
+          <p>AI fires randomly at your ships.</p>
+        }
+        @if (difficulty === 'medium') {
+          <p>AI uses hunt/target strategy to find and sink your ships.</p>
+        }
+        @if (difficulty === 'hard') {
+          <p>AI calculates optimal shots using probability analysis.</p>
+        }
+      </div>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted && !gameOver) {
+    <div class="score-display">
+      <span class="player-score">You: {{ playerScore }}</span>
+      <span class="divider">|</span>
+      <span class="ai-score">AI: {{ aiScore }}</span>
+      <span class="difficulty-badge">{{ difficulty | titlecase }}</span>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      @if (gameOver) {
+        <div class="result-message" [class.win]="winner === 'player'" [class.lose]="winner === 'ai'">
+          {{ winner === 'player' ? 'Victory!' : 'Defeat!' }}
+        </div>
+        <button mat-raised-button color="primary" (click)="playAgain()">
+          Play Again
+        </button>
+        <button mat-stroked-button (click)="resetScore()">
+          Reset Score
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+</div>

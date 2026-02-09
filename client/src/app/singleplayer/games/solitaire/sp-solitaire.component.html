@@ -1,0 +1,45 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Solitaire</h2>
+
+      <div class="option-group">
+        <label>Draw Mode</label>
+        <mat-button-toggle-group [(ngModel)]="drawMode" class="mode-toggle">
+          <mat-button-toggle [value]="1">Draw 1</mat-button-toggle>
+          <mat-button-toggle [value]="3">Draw 3</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <p class="mode-description">
+        @if (drawMode === 1) {
+          Flip one card at a time from the draw pile. Easier to win.
+        } @else {
+          Flip three cards at a time. More challenging!
+        }
+      </p>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      <button mat-raised-button (click)="undo()" [disabled]="!canUndo">
+        Undo
+      </button>
+      <button mat-raised-button color="primary" (click)="newGame()">
+        New Game
+      </button>
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>

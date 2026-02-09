@@ -1,0 +1,131 @@
+.app-container {
+  min-height: 100vh;
+  background: #1a1a2e;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  background: #16213e;
+  border-bottom: 2px solid #0f3460;
+}
+
+.title {
+  font-size: 2rem;
+  margin: 0;
+  background: linear-gradient(135deg, #e94560, #0f3460);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.main-nav {
+  display: flex;
+  gap: 8px;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: #888;
+    text-decoration: none;
+    transition: all 0.2s;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: rgba(#0f3460, 0.5);
+      color: #eee;
+    }
+
+    &.active {
+      background: rgba(#e94560, 0.15);
+      color: #e94560;
+      border: 1px solid rgba(#e94560, 0.3);
+    }
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sound-btn {
+  color: #888;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #e94560;
+  }
+
+  mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(#0f3460, 0.5);
+  padding: 8px 8px 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(#e94560, 0.3);
+
+  mat-icon {
+    color: #e94560;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .user-name {
+    color: #eee;
+    font-weight: 500;
+  }
+
+  .logout-btn {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #eee;
+    }
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.app-content {
+  flex: 1;
+}

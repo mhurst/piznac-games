@@ -1,0 +1,50 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Farkle</h2>
+
+      <p class="mode-description">
+        Push your luck! Roll 6 dice, set aside scoring dice, and try to reach 10,000 points.
+        But be careful — if you roll and nothing scores, you lose your turn!
+      </p>
+
+      <div class="setup-row">
+        <span class="setup-label">Opponents:</span>
+        <mat-button-toggle-group [(ngModel)]="opponentCount" class="toggle-group">
+          <mat-button-toggle value="1">1</mat-button-toggle>
+          <mat-button-toggle value="2">2</mat-button-toggle>
+          <mat-button-toggle value="3">3</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <div class="setup-row">
+        <span class="setup-label">Difficulty:</span>
+        <mat-button-toggle-group [(ngModel)]="difficulty" class="toggle-group">
+          <mat-button-toggle value="easy">Easy</mat-button-toggle>
+          <mat-button-toggle value="medium">Medium</mat-button-toggle>
+          <mat-button-toggle value="hard">Hard</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      <span class="difficulty-label">Difficulty: {{ difficulty | titlecase }}</span>
+      <button mat-raised-button color="primary" (click)="newGame()">
+        New Game
+      </button>
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>

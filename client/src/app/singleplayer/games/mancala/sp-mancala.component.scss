@@ -1,0 +1,143 @@
+.game-container {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #1a1a2e;
+  padding: 20px;
+}
+
+.setup-panel {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+
+  h2 {
+    color: #e94560;
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+  }
+}
+
+.option-group {
+  margin-bottom: 24px;
+
+  label {
+    display: block;
+    color: #888;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+
+.difficulty-toggle,
+.symbol-toggle {
+  width: 100%;
+
+  ::ng-deep {
+    .mat-button-toggle {
+      flex: 1;
+      background: #1a1a2e;
+
+      &.mat-button-toggle-checked {
+        background: #0f3460;
+      }
+
+      .mat-button-toggle-label-content {
+        color: #eee;
+        padding: 8px 16px;
+      }
+    }
+  }
+}
+
+.start-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  font-size: 1.1rem;
+}
+
+.back-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+
+  .player-score {
+    color: #e94560;
+    font-weight: bold;
+  }
+
+  .divider {
+    color: #444;
+  }
+
+  .ai-score {
+    color: #888;
+    font-weight: bold;
+  }
+
+  .difficulty-badge {
+    background: #16213e;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: #888;
+    margin-left: 8px;
+  }
+}
+
+.game-canvas {
+  border-radius: 12px;
+  overflow: hidden;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.game-controls {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.how-to-play {
+  margin-top: 24px;
+  max-width: 700px;
+  width: 100%;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 10px;
+  padding: 20px 28px;
+
+  h3 {
+    color: #4a90d9;
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #aaa;
+    line-height: 1.8;
+    font-size: 0.95rem;
+
+    li {
+      margin-bottom: 4px;
+    }
+  }
+}

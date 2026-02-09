@@ -1,0 +1,37 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Yahtzee</h2>
+
+      <p class="mode-description">
+        Roll 5 dice up to 3 times per turn. Fill all 13 scoring categories to finish.
+      </p>
+
+      <mat-button-toggle-group [(ngModel)]="difficulty" class="difficulty-toggle">
+        <mat-button-toggle value="easy">Easy</mat-button-toggle>
+        <mat-button-toggle value="medium">Medium</mat-button-toggle>
+        <mat-button-toggle value="hard">Hard</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      <span class="difficulty-label">Difficulty: {{ difficulty | titlecase }}</span>
+      <button mat-raised-button color="primary" (click)="newGame()">
+        New Game
+      </button>
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>
