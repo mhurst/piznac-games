@@ -23,6 +23,10 @@ import { SpMancalaComponent } from './singleplayer/games/mancala/sp-mancala.comp
 import { MancalaMpComponent } from './multiplayer/games/mancala/mancala.component';
 import { YahtzeeMpComponent } from './multiplayer/games/yahtzee/yahtzee.component';
 import { SpDartsComponent } from './singleplayer/games/darts/sp-darts.component';
+import { SpPokerComponent } from './singleplayer/games/poker/sp-poker.component';
+import { PokerMpComponent } from './multiplayer/games/poker/poker.component';
+import { SpGoFishComponent } from './singleplayer/games/go-fish/sp-go-fish.component';
+import { GoFishMpComponent } from './multiplayer/games/go-fish/go-fish.component';
 
 export const routes: Routes = [
   // Home with tabs
@@ -40,6 +44,8 @@ export const routes: Routes = [
   { path: 'multiplayer/game/blackjack/:roomId', component: BlackjackMpComponent },
   { path: 'multiplayer/game/mancala/:roomId', component: MancalaMpComponent },
   { path: 'multiplayer/game/yahtzee/:roomId', component: YahtzeeMpComponent },
+  { path: 'multiplayer/game/poker/:roomId', component: PokerMpComponent },
+  { path: 'multiplayer/game/go-fish/:roomId', component: GoFishMpComponent },
 
   // Single player routes
   { path: 'singleplayer', component: SpGameSelectComponent },
@@ -54,6 +60,8 @@ export const routes: Routes = [
   { path: 'singleplayer/game/blackjack', component: SpBlackjackComponent },
   { path: 'singleplayer/game/mancala', component: SpMancalaComponent },
   { path: 'singleplayer/game/darts', component: SpDartsComponent },
+  { path: 'singleplayer/game/poker', component: SpPokerComponent },
+  { path: 'singleplayer/game/go-fish', component: SpGoFishComponent },
 
   // Catch-all redirect
   { path: '**', redirectTo: '' }

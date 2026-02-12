@@ -97,6 +97,20 @@ export class SpGameSelectComponent {
       description: 'Throw darts at the board — test your aim!',
       icon: 'gps_fixed',
       comingSoon: false
+    },
+    {
+      id: 'poker',
+      name: 'Poker',
+      description: "Dealer's Choice poker vs AI!",
+      icon: 'style',
+      comingSoon: false
+    },
+    {
+      id: 'go-fish',
+      name: 'Go Fish',
+      description: 'Collect books of four! Ask opponents for cards.',
+      icon: 'style',
+      comingSoon: false
     }
   ];
 

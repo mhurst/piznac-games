@@ -70,6 +70,23 @@ export const GAME_SPECIFIC_SOUNDS: Record<string, Record<string, SoundConfig>> =
     'capture': { src: 'board-game/chipsCollide3.ogg', volume: 0.7 },
     'extra-turn': { src: 'board-game/chipsCollide2.ogg', volume: 0.6 },
   },
+  'poker': {
+    'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
+    'check': { src: 'board-game/cardPlace2.ogg', volume: 0.4 },
+    'chips': { src: 'board-game/chipsCollide2.ogg', volume: 0.5 },
+    'raise': { src: 'board-game/chipsCollide1.ogg', volume: 0.6 },
+    'fold': { src: 'board-game/cardSlide1.ogg', volume: 0.3 },
+    'win': { src: 'board-game/chipsCollide1.ogg', volume: 0.7 },
+    'lose': { src: 'board-game/cardSlide1.ogg', volume: 0.4 },
+  },
+  'go-fish': {
+    'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
+    'ask': { src: 'board-game/cardPlace2.ogg', volume: 0.4 },
+    'give': { src: 'board-game/cardPlace1.ogg', volume: 0.6 },
+    'fish': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
+    'book': { src: 'board-game/chipsCollide1.ogg', volume: 0.7 },
+    'win': { src: 'board-game/chipsCollide2.ogg', volume: 0.8 },
+  },
 };
 
 // All sound IDs for type safety

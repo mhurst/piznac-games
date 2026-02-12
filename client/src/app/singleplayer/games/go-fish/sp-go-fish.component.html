@@ -1,0 +1,54 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Go Fish</h2>
+
+      <p class="mode-description">
+        Collect books of four matching cards! Ask opponents for ranks
+        you hold. If they have any, they give them all. Otherwise,
+        Go Fish and draw from the deck! Most books wins.
+      </p>
+
+      <div class="setup-options">
+        <mat-form-field appearance="outline" class="setup-field">
+          <mat-label>AI Opponents</mat-label>
+          <mat-select [(ngModel)]="aiCount">
+            <mat-option [value]="1">1 Opponent</mat-option>
+            <mat-option [value]="2">2 Opponents</mat-option>
+            <mat-option [value]="3">3 Opponents</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="setup-field">
+          <mat-label>Difficulty</mat-label>
+          <mat-select [(ngModel)]="difficulty">
+            <mat-option value="easy">Easy</mat-option>
+            <mat-option value="medium">Medium</mat-option>
+            <mat-option value="hard">Hard</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      @if (gameOver) {
+        <button mat-raised-button color="primary" (click)="newGame()">
+          New Game
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>
