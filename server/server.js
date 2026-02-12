@@ -34,6 +34,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:4200',
   'https://piznac.com',
   'https://www.piznac.com',
+  'https://games.piznac.com',
   'https://fortunate-mercy-production-574d.up.railway.app'
 ];
 
