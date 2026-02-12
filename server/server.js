@@ -33,7 +33,8 @@ const MAX_PLAYERS = {
 const ALLOWED_ORIGINS = [
   'http://localhost:4200',
   'https://piznac.com',
-  'https://www.piznac.com'
+  'https://www.piznac.com',
+  'https://fortunate-mercy-production-574d.up.railway.app'
 ];
 
 const app = express();
