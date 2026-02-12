@@ -40,6 +40,20 @@ export interface MoveData {
     held?: boolean[];
     category?: string;
     totalScore?: number;
+    // Poker-specific
+    action?: string;
+    handOver?: boolean;
+    newHand?: boolean;
+    count?: number;
+    newCards?: any[];
+    variant?: string;
+    wilds?: string[];
+    // Go Fish-specific
+    gotCards?: boolean;
+    drewMatch?: boolean;
+    cardsGiven?: number;
+    anotherTurn?: boolean;
+    newBook?: string;
   };
 }
 

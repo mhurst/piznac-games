@@ -1,0 +1,60 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Poker — Dealer's Choice</h2>
+
+      <p class="mode-description">
+        The dealer picks the poker variant each hand!
+        Ante up, bet, and play. Best hand wins!
+        Start with 1,000 chips.
+      </p>
+
+      <div class="setup-options">
+        <div class="option-group">
+          <label>AI Opponents</label>
+          <mat-select [(value)]="aiCount" class="setup-select">
+            @for (count of aiCountOptions; track count) {
+              <mat-option [value]="count">{{ count }}</mat-option>
+            }
+          </mat-select>
+        </div>
+
+        <div class="option-group">
+          <label>Difficulty</label>
+          <mat-select [(value)]="difficulty" class="setup-select">
+            @for (diff of difficultyOptions; track diff) {
+              <mat-option [value]="diff">{{ diff | titlecase }}</mat-option>
+            }
+          </mat-select>
+        </div>
+      </div>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      <span class="stat">Hands: {{ handsPlayed }}</span>
+      <span class="stat">Won: {{ handsWon }}</span>
+      @if (gameOver) {
+        <button mat-raised-button color="primary" (click)="newGame()">
+          New Game
+        </button>
+      } @else {
+        <button mat-raised-button color="primary" (click)="nextHand()">
+          Next Hand
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>

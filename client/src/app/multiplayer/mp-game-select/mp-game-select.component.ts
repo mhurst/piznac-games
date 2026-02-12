@@ -74,6 +74,18 @@ export class MpGameSelectComponent {
       name: 'Yahtzee',
       description: '2-4 players, roll dice and fill your scorecard!',
       icon: 'casino'
+    },
+    {
+      id: 'poker',
+      name: 'Poker',
+      description: "2-6 players, Dealer's Choice poker!",
+      icon: 'style'
+    },
+    {
+      id: 'go-fish',
+      name: 'Go Fish',
+      description: '2-4 players, collect books of four!',
+      icon: 'style'
     }
   ];
 
