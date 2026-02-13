@@ -244,17 +244,18 @@ export class PokerScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20);
   }
 
-  private drawMessageBg(text: string, color: number = 0x16213e): void {
+  private drawMessageBg(text: string, color: number = 0x16213e, yOffset: number = 0): void {
     this.messageBg.clear();
     if (!text) return;
     const cx = this.CANVAS_W / 2;
+    const y = 325 + yOffset;
     const w = Math.max(text.length * 10 + 44, 220);
     this.messageBg.fillStyle(0x000000, 0.5);
-    this.messageBg.fillRoundedRect(cx - w / 2, 325, w, 33, 8);
+    this.messageBg.fillRoundedRect(cx - w / 2, y, w, 33, 8);
     this.messageBg.fillStyle(color, 0.85);
-    this.messageBg.fillRoundedRect(cx - w / 2, 325, w, 33, 8);
+    this.messageBg.fillRoundedRect(cx - w / 2, y, w, 33, 8);
     this.messageBg.lineStyle(1, this.GOLD, 0.5);
-    this.messageBg.strokeRoundedRect(cx - w / 2, 325, w, 33, 8);
+    this.messageBg.strokeRoundedRect(cx - w / 2, y, w, 33, 8);
   }
 
   // --- Pot Display ---
@@ -515,23 +516,25 @@ export class PokerScene extends Phaser.Scene {
     const cx = this.CANVAS_W / 2;
     const cy = 341;
 
-    // Semi-transparent overlay on table area
+    // Semi-transparent overlay on table area — size adapts to variant count
+    const variantCount = state.isDealerForSelect ? state.availableVariants.length : 0;
+    const panelH = Math.max(220, 120 + variantCount * 62);
     const overlay = this.add.graphics().setDepth(30);
     overlay.fillStyle(0x000000, 0.6);
-    overlay.fillRoundedRect(cx - 220, cy - 110, 440, 220, 16);
+    overlay.fillRoundedRect(cx - 220, cy - panelH / 2, 440, panelH, 16);
     overlay.lineStyle(2, this.GOLD, 0.7);
-    overlay.strokeRoundedRect(cx - 220, cy - 110, 440, 220, 16);
+    overlay.strokeRoundedRect(cx - 220, cy - panelH / 2, 440, panelH, 16);
     this.variantSelectElements.push(overlay);
 
     // Title
-    const title = this.add.text(cx, cy - 80, "DEALER'S CHOICE", {
+    const title = this.add.text(cx, cy - panelH / 2 + 28, "DEALER'S CHOICE", {
       fontSize: '22px', color: '#d4a847', fontFamily: 'Georgia', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(31);
     this.variantSelectElements.push(title);
 
     if (state.isDealerForSelect) {
       // Subtitle for dealer
-      const sub = this.add.text(cx, cy - 52, 'Choose the game:', {
+      const sub = this.add.text(cx, cy - panelH / 2 + 56, 'Choose the game:', {
         fontSize: '14px', color: '#aaaaaa', fontFamily: 'Arial'
       }).setOrigin(0.5).setDepth(31);
       this.variantSelectElements.push(sub);
@@ -541,7 +544,7 @@ export class PokerScene extends Phaser.Scene {
       const btnW = 380;
       const btnH = 50;
       const gap = 12;
-      const startY = cy - 16;
+      const startY = cy - panelH / 2 + 94;
 
       for (let i = 0; i < variants.length; i++) {
         const v = variants[i];
@@ -892,13 +895,15 @@ export class PokerScene extends Phaser.Scene {
     div.lineBetween(cx - 140, cy - 6, cx + 140, cy - 6);
     this.buyInElements.push(div);
 
-    // Ante info
-    const anteText = this.add.text(cx, cy + 14, `Ante: $1`, {
+    // Ante / Blinds info
+    const isHoldem = state.isHoldem || false;
+    const costText = isHoldem ? 'Blinds: $1 / $2' : 'Ante: $1';
+    const anteText = this.add.text(cx, cy + 14, costText, {
       fontSize: '14px', color: '#aaaaaa', fontFamily: 'Arial'
     }).setOrigin(0.5).setDepth(31);
     this.buyInElements.push(anteText);
 
-    // BUY IN button
+    // BUY IN / DEAL button
     const btnY = cy + 56;
     const btnW = 180;
     const btnH = 42;
@@ -909,7 +914,8 @@ export class PokerScene extends Phaser.Scene {
     btnBg.strokeRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 10);
     this.buyInElements.push(btnBg);
 
-    const btnText = this.add.text(cx, btnY, 'BUY IN  $1', {
+    const btnLabel = isHoldem ? 'DEAL' : 'BUY IN  $1';
+    const btnText = this.add.text(cx, btnY, btnLabel, {
       fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(32);
     this.buyInElements.push(btnText);
@@ -942,6 +948,41 @@ export class PokerScene extends Phaser.Scene {
     gfx.fillRoundedRect(cx - w / 2, y - h / 2, w, h, 6);
     gfx.lineStyle(1, active ? 0x4caf50 : 0x555555, 0.5);
     gfx.strokeRoundedRect(cx - w / 2, y - h / 2, w, h, 6);
+  }
+
+  // --- Community Cards (Hold'em) ---
+
+  private drawCommunityCards(cards: Card[]): void {
+    if (cards.length === 0) return;
+    const cx = this.CANVAS_W / 2;
+    const y = 275;
+    const totalSlots = 5;
+    const spacing = this.CARD_W + 8;
+    const totalW = spacing * (totalSlots - 1);
+    const startX = cx - totalW / 2;
+
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const key = this.getCardKey(card);
+      const x = startX + i * spacing;
+
+      this.trackDynamic(
+        this.add.sprite(x, y, key)
+          .setDisplaySize(this.CARD_W, this.CARD_H)
+          .setDepth(8)
+      );
+    }
+
+    // Draw empty slots for undealt community cards
+    const slotGfx = this.trackDynamic(this.add.graphics().setDepth(7));
+    for (let i = cards.length; i < totalSlots; i++) {
+      const x = startX + i * spacing;
+      slotGfx.lineStyle(1, this.GOLD, 0.2);
+      slotGfx.strokeRoundedRect(
+        x - this.CARD_W / 2, y - this.CARD_H / 2,
+        this.CARD_W, this.CARD_H, 4
+      );
+    }
   }
 
   // --- State Update ---
@@ -1014,21 +1055,29 @@ export class PokerScene extends Phaser.Scene {
       activePlayerIdx++;
     }
 
-    // Pot display
+    // Community cards (Hold'em)
+    if (state.isHoldem && state.communityCards && state.communityCards.length > 0) {
+      this.drawCommunityCards(state.communityCards);
+    }
+
+    // Pot display — shift above community cards for Hold'em
+    this.potText.setY(state.isHoldem ? 205 : 292);
     if (state.pot > 0) {
       this.potText.setText(`Pot: $${state.pot.toLocaleString()}`);
     } else {
       this.potText.setText('');
     }
 
-    // Message
+    // Message — shift below community cards for Hold'em
+    const msgY = state.isHoldem ? 360 : 341;
+    this.messageText.setY(msgY);
     this.messageText.setText(state.message);
     if (state.message) {
       let msgColor = 0x16213e;
       if (state.message.includes('win') || state.message.includes('Win')) msgColor = 0x2e7d32;
       else if (state.message.includes('fold') || state.message.includes('Fold')) msgColor = 0x8b0000;
       else if (state.message.includes('split') || state.message.includes('Split')) msgColor = 0x555555;
-      this.drawMessageBg(state.message, msgColor);
+      this.drawMessageBg(state.message, msgColor, state.isHoldem ? 19 : 0);
     } else {
       this.messageBg.clear();
     }
@@ -1139,6 +1188,27 @@ export class PokerScene extends Phaser.Scene {
       );
     }
 
+    // SB/BB badges (Hold'em)
+    if (state.isHoldem) {
+      const playerIdx = state.players.indexOf(player);
+      const isSB = playerIdx === state.smallBlindIndex;
+      const isBB = playerIdx === state.bigBlindIndex;
+      if (isSB || isBB) {
+        const badgeX = cx - 61;
+        const badgeY = cy - 61;
+        const badgeLabel = isSB ? 'SB' : 'BB';
+        const badgeColor = isSB ? 0x1a4a8b : 0x8b6b1a;
+        const badgeGfx = this.trackDynamic(this.add.graphics().setDepth(11));
+        badgeGfx.fillStyle(badgeColor);
+        badgeGfx.fillRoundedRect(badgeX - 14, badgeY - 9, 28, 18, 4);
+        this.trackDynamic(
+          this.add.text(badgeX, badgeY, badgeLabel, {
+            fontSize: '10px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(12)
+        );
+      }
+    }
+
     // Cards
     if (player.hand.length > 0 && !player.folded) {
       const handSize = player.hand.length;
@@ -1172,7 +1242,7 @@ export class PokerScene extends Phaser.Scene {
 
       for (let visualPos = 0; visualPos < handSize; visualPos++) {
         // For my hand, render in myCardOrder (but not for stud — no reorder); for others, render in order
-        const canReorder = isMe && !state.isStud;
+        const canReorder = isMe && !state.isStud && !state.isHoldem;
         const actualIndex = canReorder ? this.myCardOrder[visualPos] : visualPos;
         const card = player.hand[actualIndex];
         // For human player in stud, hole cards keep faceDown for positioning but show face-up
@@ -1188,7 +1258,7 @@ export class PokerScene extends Phaser.Scene {
         );
 
         // Make my face-up cards draggable for sorting (not in stud — fixed order)
-        if (isMe && !card.faceDown && !state.isStud) {
+        if (isMe && !card.faceDown && !state.isStud && !state.isHoldem) {
           sprite.setInteractive({ useHandCursor: true, draggable: true });
           this.input.setDraggable(sprite);
           sprite.setData('draggable', true);

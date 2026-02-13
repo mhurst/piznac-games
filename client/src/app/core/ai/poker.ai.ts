@@ -22,6 +22,8 @@ interface GameContext {
   playersInHand: number; // non-folded players
   phase: 'betting1' | 'betting2' | 'betting3' | 'betting4' | 'betting5';
   wilds?: WildCardOption[];
+  communityCards?: Card[];
+  isHoldem?: boolean;
 }
 
 /**
@@ -30,17 +32,37 @@ interface GameContext {
 export function getAIBettingDecision(difficulty: Difficulty, context: GameContext): BettingDecision {
   const toCall = context.currentBet - context.myBet;
   const wilds = context.wilds || [];
-  // For >5 cards (stud), evaluate best 5 of N
-  const isMulti = context.hand.length > 5;
-  const strength = isMulti ? handStrengthMulti(context.hand, wilds) : handStrength(context.hand, wilds);
-  const result = isMulti
-    ? (wilds.length > 0 ? evaluateBestHandWithWilds(context.hand, wilds) : evaluateBestHand(context.hand))
-    : (wilds.length > 0 ? evaluateHandWithWilds(context.hand, wilds) : evaluateHand(context.hand));
+  const community = context.communityCards || [];
+
+  let strength: number;
+  let rank: number;
+
+  if (context.isHoldem) {
+    if (community.length === 0) {
+      // Preflop: use heuristic for 2 hole cards
+      strength = holdemPreflopStrength(context.hand);
+      rank = strength >= 0.6 ? HandRank.OnePair : HandRank.HighCard;
+    } else {
+      // Post-flop: evaluate best 5 of available cards
+      const allCards = [...context.hand, ...community];
+      const result = evaluateBestHand(allCards);
+      strength = handStrengthMulti(allCards, []);
+      rank = result.rank;
+    }
+  } else {
+    // For >5 cards (stud), evaluate best 5 of N
+    const isMulti = context.hand.length > 5;
+    strength = isMulti ? handStrengthMulti(context.hand, wilds) : handStrength(context.hand, wilds);
+    const result = isMulti
+      ? (wilds.length > 0 ? evaluateBestHandWithWilds(context.hand, wilds) : evaluateBestHand(context.hand))
+      : (wilds.length > 0 ? evaluateHandWithWilds(context.hand, wilds) : evaluateHand(context.hand));
+    rank = result.rank;
+  }
 
   switch (difficulty) {
-    case 'easy': return easyBet(context, strength, result.rank, toCall);
-    case 'medium': return mediumBet(context, strength, result.rank, toCall);
-    case 'hard': return hardBet(context, strength, result.rank, toCall);
+    case 'easy': return easyBet(context, strength, rank, toCall);
+    case 'medium': return mediumBet(context, strength, rank, toCall);
+    case 'hard': return hardBet(context, strength, rank, toCall);
   }
 }
 
@@ -276,4 +298,43 @@ function handStrengthMulti(cards: Card[], wilds: WildCardOption[] = []): number 
     ? (result.tiebreakers[0] - 2) / 12 * 0.05
     : 0;
   return Math.min(1, rankScore + tbScore);
+}
+
+/**
+ * Preflop hand strength heuristic for Texas Hold'em (2 hole cards).
+ * Returns 0..1 score.
+ */
+function holdemPreflopStrength(hole: Card[]): number {
+  if (hole.length !== 2) return 0.2;
+
+  const v1 = CARD_VALUES[hole[0].value] || 0;
+  const v2 = CARD_VALUES[hole[1].value] || 0;
+  const high = Math.max(v1, v2);
+  const low = Math.min(v1, v2);
+  const isPair = v1 === v2;
+  const isSuited = hole[0].suit === hole[1].suit;
+  const gap = high - low;
+  const isConnected = gap === 1;
+
+  let score = 0;
+
+  if (isPair) {
+    // Pair: 2s=0.45, 10s=0.7, As=0.95
+    score = 0.45 + (low - 2) / 12 * 0.5;
+  } else {
+    // High card contribution
+    score = (high - 2) / 12 * 0.35 + (low - 2) / 12 * 0.10;
+
+    // Suited bonus
+    if (isSuited) score += 0.06;
+
+    // Connected bonus
+    if (isConnected) score += 0.04;
+    else if (gap === 2) score += 0.02;
+
+    // Big gap penalty
+    if (gap >= 5) score -= 0.05;
+  }
+
+  return Math.max(0.08, Math.min(0.95, score));
 }

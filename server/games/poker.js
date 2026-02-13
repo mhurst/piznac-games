@@ -9,15 +9,19 @@ const PotManager = require('./poker-pot-manager');
 const ANTE_AMOUNT = 1;
 const MIN_BET = 5;
 const STARTING_CHIPS = 1000;
+const SMALL_BLIND = 1;
+const BIG_BLIND = 2;
 
 const VARIANT_NAMES = {
   'five-card-draw': '5-Card Draw',
   'seven-card-stud': '7-Card Stud',
+  'texas-holdem': "Texas Hold'em",
 };
 
 const VARIANT_ALLOWS_WILDS = {
   'five-card-draw': true,
   'seven-card-stud': true,
+  'texas-holdem': false,
 };
 
 const VALID_WILD_OPTIONS = [
@@ -93,6 +97,11 @@ class Poker {
     this.studLastCardDown = true;
     this.currentStreet = 0;
 
+    // Texas Hold'em state
+    this.communityCards = [];
+    this.smallBlindIndex = -1;
+    this.bigBlindIndex = -1;
+
     // Start with variant selection (dealer's choice)
     this.startVariantSelect();
   }
@@ -132,6 +141,7 @@ class Poker {
     this.handNumber++;
     this.deck = shuffleDeck(createDeck(this.activeWilds));
     this.wonByFold = false;
+    this.communityCards = [];
 
     // Reset player state
     for (const id of this.activePlayers) {
@@ -156,41 +166,196 @@ class Poker {
     this.potManager.reset();
     this.potManager.setPlayers(this.activePlayers);
 
-    // Post antes
-    this.phase = 'ante';
-    for (const id of this.activePlayers) {
-      const p = this.players[id];
-      const ante = Math.min(ANTE_AMOUNT, p.chips);
-      p.chips -= ante;
-      p.bet = ante;
-      p.totalBet = ante;
-      this.potManager.recordBet(id, ante);
-      if (p.chips === 0) {
-        p.allIn = true;
-        this.potManager.recordAllIn(id);
-      }
-    }
-    this.currentBet = ANTE_AMOUNT;
-
-    if (this.currentVariant === 'seven-card-stud') {
-      // Stud: deal 2 down + 1 up (3rd street)
-      this.currentStreet = 3;
-      this.startStudStreet3();
-    } else {
-      // Draw: deal 5 cards
+    if (this.isHoldem) {
+      // Hold'em: post blinds instead of antes
       this.phase = 'dealing';
-      for (let round = 0; round < 5; round++) {
-        for (const id of this.activePlayers) {
-          this.players[id].hand.push(this.drawCard());
+      this.postBlinds();
+      this.dealHoldemPreflop();
+    } else {
+      // Post antes (Draw + Stud)
+      this.phase = 'ante';
+      for (const id of this.activePlayers) {
+        const p = this.players[id];
+        const ante = Math.min(ANTE_AMOUNT, p.chips);
+        p.chips -= ante;
+        p.bet = ante;
+        p.totalBet = ante;
+        this.potManager.recordBet(id, ante);
+        if (p.chips === 0) {
+          p.allIn = true;
+          this.potManager.recordAllIn(id);
         }
       }
-      // Move to first betting round
-      this.startBettingRound('betting1');
+      this.currentBet = ANTE_AMOUNT;
+
+      if (this.currentVariant === 'seven-card-stud') {
+        // Stud: deal 2 down + 1 up (3rd street)
+        this.currentStreet = 3;
+        this.startStudStreet3();
+      } else {
+        // Draw: deal 5 cards
+        this.phase = 'dealing';
+        for (let round = 0; round < 5; round++) {
+          for (const id of this.activePlayers) {
+            this.players[id].hand.push(this.drawCard());
+          }
+        }
+        // Move to first betting round
+        this.startBettingRound('betting1');
+      }
     }
+  }
+
+  // --- Texas Hold'em ---
+
+  postBlinds() {
+    const active = this.activePlayers;
+    const count = active.length;
+
+    let sbIdx, bbIdx;
+
+    if (count === 2) {
+      // Heads-up: dealer = SB, other = BB
+      sbIdx = this.dealerIndex;
+      bbIdx = (this.dealerIndex + 1) % count;
+    } else {
+      // 3+ players: left of dealer = SB, next = BB
+      sbIdx = (this.dealerIndex + 1) % count;
+      bbIdx = (this.dealerIndex + 2) % count;
+    }
+
+    this.smallBlindIndex = sbIdx;
+    this.bigBlindIndex = bbIdx;
+
+    // Post small blind
+    const sbId = active[sbIdx];
+    const sbPlayer = this.players[sbId];
+    const sbAmount = Math.min(SMALL_BLIND, sbPlayer.chips);
+    sbPlayer.chips -= sbAmount;
+    sbPlayer.bet = sbAmount;
+    sbPlayer.totalBet = sbAmount;
+    this.potManager.recordBet(sbId, sbAmount);
+    if (sbPlayer.chips === 0) {
+      sbPlayer.allIn = true;
+      this.potManager.recordAllIn(sbId);
+    }
+
+    // Post big blind
+    const bbId = active[bbIdx];
+    const bbPlayer = this.players[bbId];
+    const bbAmount = Math.min(BIG_BLIND, bbPlayer.chips);
+    bbPlayer.chips -= bbAmount;
+    bbPlayer.bet = bbAmount;
+    bbPlayer.totalBet = bbAmount;
+    this.potManager.recordBet(bbId, bbAmount);
+    if (bbPlayer.chips === 0) {
+      bbPlayer.allIn = true;
+      this.potManager.recordAllIn(bbId);
+    }
+
+    this.currentBet = BIG_BLIND;
+  }
+
+  dealHoldemPreflop() {
+    // Deal 2 hole cards to each player
+    for (let round = 0; round < 2; round++) {
+      for (const id of this.activePlayers) {
+        this.players[id].hand.push(this.drawCard());
+      }
+    }
+
+    this.startHoldemBettingRound('betting1');
+  }
+
+  startHoldemBettingRound(phaseName) {
+    this.phase = phaseName;
+    const active = this.activePlayers;
+    const inHand = this.playersInHand;
+    const count = active.length;
+
+    if (phaseName === 'betting1') {
+      // Preflop: don't reset bets (blinds already posted)
+      for (const id of active) {
+        this.players[id].hasActed = false;
+      }
+
+      if (count === 2) {
+        // Heads-up: dealer (SB) opens preflop
+        this.currentPlayerIndex = inHand.indexOf(active[this.dealerIndex]);
+        if (this.currentPlayerIndex < 0) this.currentPlayerIndex = 0;
+      } else {
+        // UTG = left of BB
+        const utgId = active[(this.bigBlindIndex + 1) % count];
+        this.currentPlayerIndex = inHand.indexOf(utgId);
+        if (this.currentPlayerIndex < 0) this.currentPlayerIndex = 0;
+      }
+    } else {
+      // Post-flop: reset bets
+      this.currentBet = 0;
+      this.minRaise = MIN_BET;
+      this.lastRaiser = null;
+
+      for (const id of active) {
+        this.players[id].bet = 0;
+        this.players[id].hasActed = false;
+      }
+
+      if (count === 2) {
+        // Heads-up post-flop: BB acts first
+        const bbId = active[this.bigBlindIndex];
+        this.currentPlayerIndex = inHand.indexOf(bbId);
+        if (this.currentPlayerIndex < 0) this.currentPlayerIndex = 0;
+      } else {
+        // First active player left of dealer
+        for (let i = 1; i <= count; i++) {
+          const candidateId = active[(this.dealerIndex + i) % count];
+          const idxInHand = inHand.indexOf(candidateId);
+          if (idxInHand >= 0 && !this.players[candidateId].folded && !this.players[candidateId].allIn) {
+            this.currentPlayerIndex = idxInHand;
+            break;
+          }
+        }
+      }
+    }
+
+    this.skipInactivePlayers();
+
+    const canAct = this.playersInHand.filter(id => !this.players[id].allIn && !this.players[id].hasActed);
+    if (canAct.length <= 1 && (phaseName !== 'betting1' || canAct.length === 0)) {
+      this.endBettingRound();
+    }
+  }
+
+  dealFlop() {
+    // Burn 1 card
+    this.drawCard();
+    // Deal 3 community cards
+    this.communityCards.push(this.drawCard(), this.drawCard(), this.drawCard());
+    this.startHoldemBettingRound('betting2');
+  }
+
+  dealTurn() {
+    // Burn 1 card
+    this.drawCard();
+    // Deal 1 community card
+    this.communityCards.push(this.drawCard());
+    this.startHoldemBettingRound('betting3');
+  }
+
+  dealRiver() {
+    // Burn 1 card
+    this.drawCard();
+    // Deal 1 community card
+    this.communityCards.push(this.drawCard());
+    this.startHoldemBettingRound('betting4');
   }
 
   get isStud() {
     return this.currentVariant === 'seven-card-stud';
+  }
+
+  get isHoldem() {
+    return this.currentVariant === 'texas-holdem';
   }
 
   startStudStreet3() {
@@ -612,7 +777,18 @@ class Poker {
       return;
     }
 
-    if (this.isStud) {
+    if (this.isHoldem) {
+      // Hold'em progression: betting1→flop, betting2→turn, betting3→river, betting4→showdown
+      if (this.phase === 'betting1') {
+        this.dealFlop();
+      } else if (this.phase === 'betting2') {
+        this.dealTurn();
+      } else if (this.phase === 'betting3') {
+        this.dealRiver();
+      } else if (this.phase === 'betting4') {
+        this.showdown();
+      }
+    } else if (this.isStud) {
       // Stud progression
       const nextStreetMap = { 'betting1': 4, 'betting2': 5, 'betting3': 6, 'betting4': 7 };
       const nextStreet = nextStreetMap[this.phase];
@@ -776,11 +952,15 @@ class Poker {
   showdown() {
     this.phase = 'showdown';
 
-    // Evaluate all hands (stud: best 5 of 7)
+    // Evaluate all hands
     const inHand = this.playersInHand;
     for (const id of inHand) {
       const hand = this.players[id].hand;
-      if (this.isStud && hand.length > 5) {
+      if (this.isHoldem) {
+        // Hold'em: best 5 of 7 (2 hole + 5 community)
+        const allCards = [...hand, ...this.communityCards];
+        this.players[id].handResult = evaluateBestHand(allCards);
+      } else if (this.isStud && hand.length > 5) {
         this.players[id].handResult = this.activeWilds.length > 0
           ? evaluateBestHandWithWilds(hand, this.activeWilds)
           : evaluateBestHand(hand);
@@ -798,7 +978,10 @@ class Poker {
     for (const pot of pots) {
       const eligibleHands = inHand
         .filter(id => pot.eligible.includes(id))
-        .map(id => ({ playerId: id, cards: this.players[id].hand }));
+        .map(id => ({
+          playerId: id,
+          cards: this.isHoldem ? [...this.players[id].hand, ...this.communityCards] : this.players[id].hand
+        }));
 
       if (eligibleHands.length === 0) continue;
 
@@ -864,6 +1047,9 @@ class Poker {
     this.minRaise = MIN_BET;
     this.lastRaiser = null;
     this.currentStreet = 0;
+    this.communityCards = [];
+    this.smallBlindIndex = -1;
+    this.bigBlindIndex = -1;
 
     // Rotate dealer
     const active = this.activePlayers;
@@ -973,7 +1159,11 @@ class Poker {
       activeWilds: this.activeWilds,
       isStud: this.isStud,
       currentStreet: this.currentStreet,
-      lastCardDown: this.studLastCardDown
+      lastCardDown: this.studLastCardDown,
+      isHoldem: this.isHoldem,
+      communityCards: this.communityCards,
+      smallBlindIndex: this.smallBlindIndex,
+      bigBlindIndex: this.bigBlindIndex
     };
   }
 }

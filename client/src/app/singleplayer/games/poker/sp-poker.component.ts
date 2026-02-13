@@ -9,7 +9,8 @@ import { PokerScene } from '../../../games/poker/poker.scene';
 import {
   Card, PokerPlayer, PokerVisualState, PokerPhase, PokerVariant, Difficulty,
   WildCardOption, ANTE_AMOUNT, MIN_BET, STARTING_CHIPS, HAND_RANK_NAMES, POKER_VARIANTS,
-  VARIANT_NAMES, VARIANT_ALLOWS_WILDS, WILD_CARD_OPTIONS, isCardWild
+  VARIANT_NAMES, VARIANT_ALLOWS_WILDS, WILD_CARD_OPTIONS, isCardWild,
+  SMALL_BLIND, BIG_BLIND
 } from '../../../games/poker/poker-types';
 import { createShuffledDeck, drawCards } from '../../../games/poker/poker-deck';
 import { evaluateHand, evaluateHandWithWilds, evaluateBestHand, evaluateBestHandWithWilds, compareHands, determineWinners } from '../../../games/poker/poker-hand-evaluator';
@@ -70,6 +71,11 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   // 7-Card Stud state
   private studLastCardDown = true;
   private currentStreet = 0; // 3-7
+
+  // Texas Hold'em state
+  private communityCards: Card[] = [];
+  private smallBlindIndex = -1;
+  private bigBlindIndex = -1;
 
   // Setup options
   gameStarted = false;
@@ -256,6 +262,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.minRaise = MIN_BET;
     this.isProcessing = false;
     this.wonByFold = false;
+    this.communityCards = [];
 
     // Reset player state
     for (const p of this.activePlayers) {
@@ -274,41 +281,214 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.potManager.reset();
     this.potManager.setPlayers(this.activePlayers.map(p => p.id));
 
-    // Post antes
-    this.phase = 'ante';
-    for (const p of this.activePlayers) {
-      const ante = Math.min(ANTE_AMOUNT, p.chips);
-      p.chips -= ante;
-      p.bet = ante;
-      p.totalBet = ante;
-      this.potManager.recordBet(p.id, ante);
-      if (p.chips === 0) {
-        p.allIn = true;
-        this.potManager.recordAllIn(p.id);
-      }
-    }
-    this.currentBet = ANTE_AMOUNT;
-
-    if (this.currentVariant === 'seven-card-stud') {
-      // Stud: deal 2 down + 1 up (3rd street)
-      this.currentStreet = 3;
-      this.startStudStreet3();
-    } else {
-      // Draw: deal 5 cards face-down
+    if (this.isHoldem) {
+      // Hold'em: post blinds instead of antes
       this.phase = 'dealing';
-      for (let round = 0; round < 5; round++) {
-        for (const p of this.activePlayers) {
-          const cards = drawCards(this.deck, 1);
-          p.hand.push(cards[0]);
+      this.postBlinds();
+      this.dealHoldemPreflop();
+    } else {
+      // Post antes (Draw + Stud)
+      this.phase = 'ante';
+      for (const p of this.activePlayers) {
+        const ante = Math.min(ANTE_AMOUNT, p.chips);
+        p.chips -= ante;
+        p.bet = ante;
+        p.totalBet = ante;
+        this.potManager.recordBet(p.id, ante);
+        if (p.chips === 0) {
+          p.allIn = true;
+          this.potManager.recordAllIn(p.id);
         }
       }
+      this.currentBet = ANTE_AMOUNT;
 
-      this.audio.playGame('poker', 'deal');
-      this.updateScene('Cards dealt! First betting round');
+      if (this.currentVariant === 'seven-card-stud') {
+        // Stud: deal 2 down + 1 up (3rd street)
+        this.currentStreet = 3;
+        this.startStudStreet3();
+      } else {
+        // Draw: deal 5 cards face-down
+        this.phase = 'dealing';
+        for (let round = 0; round < 5; round++) {
+          for (const p of this.activePlayers) {
+            const cards = drawCards(this.deck, 1);
+            p.hand.push(cards[0]);
+          }
+        }
 
-      // Start betting round 1
-      setTimeout(() => this.startBettingRound('betting1'), 500);
+        this.audio.playGame('poker', 'deal');
+        this.updateScene('Cards dealt! First betting round');
+
+        // Start betting round 1
+        setTimeout(() => this.startBettingRound('betting1'), 500);
+      }
     }
+  }
+
+  // --- Texas Hold'em ---
+
+  private postBlinds(): void {
+    const active = this.activePlayers;
+    const count = active.length;
+
+    let sbIdx: number;
+    let bbIdx: number;
+
+    if (count === 2) {
+      // Heads-up: dealer = SB, other = BB
+      sbIdx = this.dealerIndex;
+      bbIdx = (this.dealerIndex + 1) % count;
+    } else {
+      // 3+ players: left of dealer = SB, next = BB
+      sbIdx = (this.dealerIndex + 1) % count;
+      bbIdx = (this.dealerIndex + 2) % count;
+    }
+
+    this.smallBlindIndex = sbIdx;
+    this.bigBlindIndex = bbIdx;
+
+    // Post small blind
+    const sbPlayer = active[sbIdx];
+    const sbAmount = Math.min(SMALL_BLIND, sbPlayer.chips);
+    sbPlayer.chips -= sbAmount;
+    sbPlayer.bet = sbAmount;
+    sbPlayer.totalBet = sbAmount;
+    this.potManager.recordBet(sbPlayer.id, sbAmount);
+    if (sbPlayer.chips === 0) {
+      sbPlayer.allIn = true;
+      this.potManager.recordAllIn(sbPlayer.id);
+    }
+
+    // Post big blind
+    const bbPlayer = active[bbIdx];
+    const bbAmount = Math.min(BIG_BLIND, bbPlayer.chips);
+    bbPlayer.chips -= bbAmount;
+    bbPlayer.bet = bbAmount;
+    bbPlayer.totalBet = bbAmount;
+    this.potManager.recordBet(bbPlayer.id, bbAmount);
+    if (bbPlayer.chips === 0) {
+      bbPlayer.allIn = true;
+      this.potManager.recordAllIn(bbPlayer.id);
+    }
+
+    this.currentBet = BIG_BLIND;
+  }
+
+  private dealHoldemPreflop(): void {
+    // Deal 2 hole cards to each player
+    for (let round = 0; round < 2; round++) {
+      for (const p of this.activePlayers) {
+        const cards = drawCards(this.deck, 1);
+        p.hand.push(cards[0]);
+      }
+    }
+
+    this.audio.playGame('poker', 'deal');
+    this.updateScene('Preflop — betting round');
+
+    setTimeout(() => this.startHoldemBettingRound('betting1'), 500);
+  }
+
+  private startHoldemBettingRound(phaseName: PokerPhase): void {
+    this.phase = phaseName;
+    const active = this.activePlayers;
+    const inHand = this.playersInHand;
+    const count = active.length;
+
+    if (phaseName === 'betting1') {
+      // Preflop: don't reset bets (blinds already posted), don't reset currentBet
+      for (const p of active) {
+        p.hasActed = false;
+      }
+
+      // Opener = UTG (left of BB); heads-up: dealer/SB acts first preflop
+      if (count === 2) {
+        // Heads-up: dealer (SB) opens preflop
+        this.currentPlayerIndex = inHand.indexOf(active[this.dealerIndex]);
+        if (this.currentPlayerIndex < 0) this.currentPlayerIndex = 0;
+      } else {
+        // UTG = left of BB
+        const utg = active[(this.bigBlindIndex + 1) % count];
+        this.currentPlayerIndex = inHand.indexOf(utg);
+        if (this.currentPlayerIndex < 0) this.currentPlayerIndex = 0;
+      }
+    } else {
+      // Post-flop: reset bets, opener = first active left of dealer
+      this.currentBet = 0;
+      this.minRaise = MIN_BET;
+
+      for (const p of active) {
+        p.bet = 0;
+        p.hasActed = false;
+      }
+
+      if (count === 2) {
+        // Heads-up post-flop: BB acts first (non-dealer)
+        const bbPlayer = active[this.bigBlindIndex];
+        this.currentPlayerIndex = inHand.indexOf(bbPlayer);
+        if (this.currentPlayerIndex < 0) this.currentPlayerIndex = 0;
+      } else {
+        // First active player left of dealer
+        for (let i = 1; i <= count; i++) {
+          const candidate = active[(this.dealerIndex + i) % count];
+          const idxInHand = inHand.indexOf(candidate);
+          if (idxInHand >= 0 && !candidate.folded && !candidate.allIn) {
+            this.currentPlayerIndex = idxInHand;
+            break;
+          }
+        }
+      }
+    }
+
+    this.skipInactive();
+
+    const canAct = this.playersInHand.filter(p => !p.allIn && !p.hasActed);
+    if (canAct.length <= 1 && (phaseName !== 'betting1' || canAct.length === 0)) {
+      this.endBettingRound();
+      return;
+    }
+
+    this.updateScene(this.getBettingMessage());
+    this.processCurrentPlayer();
+  }
+
+  private dealFlop(): void {
+    // Burn 1 card
+    drawCards(this.deck, 1);
+    // Deal 3 community cards
+    const cards = drawCards(this.deck, 3);
+    this.communityCards.push(...cards);
+
+    this.audio.playGame('poker', 'deal');
+    this.updateScene('Flop dealt — betting round');
+
+    setTimeout(() => this.startHoldemBettingRound('betting2'), 500);
+  }
+
+  private dealTurn(): void {
+    // Burn 1 card
+    drawCards(this.deck, 1);
+    // Deal 1 community card
+    const cards = drawCards(this.deck, 1);
+    this.communityCards.push(cards[0]);
+
+    this.audio.playGame('poker', 'deal');
+    this.updateScene('Turn dealt — betting round');
+
+    setTimeout(() => this.startHoldemBettingRound('betting3'), 500);
+  }
+
+  private dealRiver(): void {
+    // Burn 1 card
+    drawCards(this.deck, 1);
+    // Deal 1 community card
+    const cards = drawCards(this.deck, 1);
+    this.communityCards.push(cards[0]);
+
+    this.audio.playGame('poker', 'deal');
+    this.updateScene('River dealt — final betting round');
+
+    setTimeout(() => this.startHoldemBettingRound('betting4'), 500);
   }
 
   private get activePlayers(): PlayerState[] {
@@ -323,6 +503,10 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
 
   private get isStud(): boolean {
     return this.currentVariant === 'seven-card-stud';
+  }
+
+  private get isHoldem(): boolean {
+    return this.currentVariant === 'texas-holdem';
   }
 
   /** 3rd Street: deal 2 face-down + 1 face-up to each player, then betting1. */
@@ -503,6 +687,12 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     if (this.isStud) {
       return `${this.streetName(this.currentStreet)} — Your turn`;
     }
+    if (this.isHoldem) {
+      const holdemStreets: Record<string, string> = {
+        'betting1': 'Preflop', 'betting2': 'Flop', 'betting3': 'Turn', 'betting4': 'River'
+      };
+      return `${holdemStreets[this.phase] || 'Betting'} — Your turn`;
+    }
     const round = this.phase === 'betting1' ? 'Round 1' : 'Round 2';
     return `${round} — Your turn`;
   }
@@ -542,7 +732,9 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
       minRaise: this.minRaise,
       playersInHand: this.playersInHand.length,
       phase: this.phase as any,
-      wilds: this.activeWilds
+      wilds: this.activeWilds,
+      communityCards: this.isHoldem ? this.communityCards : undefined,
+      isHoldem: this.isHoldem
     });
 
     switch (decision.action) {
@@ -739,7 +931,18 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.isStud) {
+    if (this.isHoldem) {
+      // Hold'em progression: betting1→flop, betting2→turn, betting3→river, betting4→showdown
+      if (this.phase === 'betting1') {
+        this.dealFlop();
+      } else if (this.phase === 'betting2') {
+        this.dealTurn();
+      } else if (this.phase === 'betting3') {
+        this.dealRiver();
+      } else if (this.phase === 'betting4') {
+        this.showdown();
+      }
+    } else if (this.isStud) {
       // Stud progression: betting1→street4, betting2→street5, ..., betting5→showdown
       const nextStreetMap: Record<string, number> = {
         'betting1': 4, 'betting2': 5, 'betting3': 6, 'betting4': 7
@@ -873,8 +1076,12 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
 
     const inHand = this.playersInHand;
     for (const p of inHand) {
+      // Hold'em: best 5 of 7 (2 hole + 5 community)
       // Stud: best 5 of 7; Draw: standard 5-card eval
-      if (this.isStud && p.hand.length > 5) {
+      if (this.isHoldem) {
+        const allCards = [...p.hand, ...this.communityCards];
+        p.handResult = evaluateBestHand(allCards);
+      } else if (this.isStud && p.hand.length > 5) {
         p.handResult = this.activeWilds.length > 0
           ? evaluateBestHandWithWilds(p.hand, this.activeWilds)
           : evaluateBestHand(p.hand);
@@ -892,7 +1099,10 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     for (const pot of pots) {
       const eligible = inHand
         .filter(p => pot.eligible.includes(p.id))
-        .map(p => ({ playerId: p.id, cards: p.hand }));
+        .map(p => ({
+          playerId: p.id,
+          cards: this.isHoldem ? [...p.hand, ...this.communityCards] : p.hand
+        }));
 
       if (eligible.length === 0) continue;
 
@@ -1026,6 +1236,9 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
           ? { suit: 'back' as any, value: 'back', faceDown: true }
           : { ...c, faceDown: false }
         );
+      } else if (this.isHoldem) {
+        // Hold'em: opponents show 2 face-down cards (hole cards hidden until showdown)
+        hand = p.hand.map(() => ({ suit: 'back' as any, value: 'back', faceDown: true }));
       } else {
         // Draw: all opponent cards hidden
         hand = p.hand.map(() => ({ suit: 'back' as any, value: 'back', faceDown: true }));
@@ -1093,7 +1306,11 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
       isBuyIn: this.phase === 'ante' && (!humanPlayer || humanPlayer.hand.length === 0),
       currentStreet: this.currentStreet,
       lastCardDown: this.studLastCardDown,
-      isStud: this.isStud
+      isStud: this.isStud,
+      communityCards: this.communityCards,
+      isHoldem: this.isHoldem,
+      smallBlindIndex: this.smallBlindIndex,
+      bigBlindIndex: this.bigBlindIndex
     };
 
     this.scene.updateState(state);
@@ -1121,6 +1338,9 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.wonByFold = false;
     this.isProcessing = false;
     this.currentStreet = 0;
+    this.communityCards = [];
+    this.smallBlindIndex = -1;
+    this.bigBlindIndex = -1;
     this.dealerIndex = (this.dealerIndex + 1) % this.activePlayers.length;
     this.startVariantSelect();
   }

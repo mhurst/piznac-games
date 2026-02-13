@@ -206,6 +206,7 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     const bettingPhases = ['betting1', 'betting2', 'betting3', 'betting4', 'betting5'];
     const isBettingPhase = bettingPhases.includes(phase) && isMyTurn;
     const isStudGame = this.gameState.isStud || false;
+    const isHoldemGame = this.gameState.isHoldem || false;
     const isDrawPhase = phase === 'draw' && isMyTurn;
     const isShowdown = phase === 'showdown' || phase === 'settlement';
 
@@ -246,6 +247,11 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
           const streetNames: Record<number, string> = { 3: '3rd Street', 4: '4th Street', 5: '5th Street', 6: '6th Street', 7: '7th Street' };
           const street = this.gameState.currentStreet || 3;
           message = `${streetNames[street] || 'Betting'} — Your turn`;
+        } else if (isHoldemGame) {
+          const holdemStreets: Record<string, string> = {
+            'betting1': 'Preflop', 'betting2': 'Flop', 'betting3': 'Turn', 'betting4': 'River'
+          };
+          message = `${holdemStreets[phase] || 'Betting'} — Your turn`;
         } else {
           const round = phase === 'betting1' ? 'Round 1' : 'Round 2';
           message = `${round} — Your turn`;
@@ -321,7 +327,11 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
       isBuyIn: phase === 'ante' && (!myPlayer || !myPlayer.hand || myPlayer.hand.length === 0),
       currentStreet: this.gameState.currentStreet || 0,
       lastCardDown: this.gameState.lastCardDown || false,
-      isStud: isStudGame
+      isStud: isStudGame,
+      communityCards: this.gameState.communityCards || [],
+      isHoldem: isHoldemGame,
+      smallBlindIndex: this.gameState.smallBlindIndex ?? -1,
+      bigBlindIndex: this.gameState.bigBlindIndex ?? -1
     };
 
     this.scene.updateState(state);

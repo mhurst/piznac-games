@@ -41,18 +41,21 @@ export interface HandResult {
 }
 
 export type PokerPhase = 'variant-select' | 'wild-select' | 'ante' | 'dealing' | 'betting1' | 'draw' | 'betting2' | 'showdown' | 'settlement'
-  | 'street3' | 'street4' | 'street5' | 'street6' | 'street7' | 'betting3' | 'betting4' | 'betting5';
+  | 'street3' | 'street4' | 'street5' | 'street6' | 'street7' | 'betting3' | 'betting4' | 'betting5'
+  | 'preflop' | 'flop' | 'turn' | 'river';
 
-export type PokerVariant = 'five-card-draw' | 'seven-card-stud';
+export type PokerVariant = 'five-card-draw' | 'seven-card-stud' | 'texas-holdem';
 
 export const POKER_VARIANTS: { id: PokerVariant; name: string; description: string }[] = [
   { id: 'five-card-draw', name: '5-Card Draw', description: 'Classic draw poker — discard and draw up to 5 cards' },
   { id: 'seven-card-stud', name: '7-Card Stud', description: 'Progressive dealing — 7 cards, best 5 wins' },
+  { id: 'texas-holdem', name: "Texas Hold'em", description: 'Community cards — 2 hole cards, 5 shared, best 5 wins' },
 ];
 
 export const VARIANT_NAMES: Record<PokerVariant, string> = {
   'five-card-draw': '5-Card Draw',
   'seven-card-stud': '7-Card Stud',
+  'texas-holdem': "Texas Hold'em",
 };
 
 // --- Wild Cards ---
@@ -91,6 +94,7 @@ export function isCardWild(card: Card, wilds: WildCardOption[]): boolean {
 export const VARIANT_ALLOWS_WILDS: Record<PokerVariant, boolean> = {
   'five-card-draw': true,
   'seven-card-stud': true,
+  'texas-holdem': false,
 };
 
 export type BettingAction = 'check' | 'call' | 'raise' | 'fold' | 'allin';
@@ -171,6 +175,12 @@ export interface PokerVisualState {
   currentStreet: number;    // 3-7, which street we're on (0 for draw)
   lastCardDown: boolean;    // whether 7th card is dealt face-down
   isStud: boolean;          // convenience flag
+
+  // Texas Hold'em
+  communityCards: Card[];
+  isHoldem: boolean;
+  smallBlindIndex: number;
+  bigBlindIndex: number;
 }
 
 export interface DrawSelection {
@@ -186,3 +196,5 @@ export const CARD_VALUES: Record<string, number> = {
 export const ANTE_AMOUNT = 1;
 export const MIN_BET = 5;
 export const STARTING_CHIPS = 1000;
+export const SMALL_BLIND = 1;
+export const BIG_BLIND = 2;
