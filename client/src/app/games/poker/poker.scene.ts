@@ -72,6 +72,9 @@ export class PokerScene extends Phaser.Scene {
   // Table label (dynamic variant name)
   private tableLabel!: Phaser.GameObjects.Text;
 
+  // Scene readiness flag
+  private sceneReady = false;
+
   // Top banner (game info)
   private bannerBg!: Phaser.GameObjects.Graphics;
   private bannerVariantText!: Phaser.GameObjects.Text;
@@ -134,7 +137,13 @@ export class PokerScene extends Phaser.Scene {
     this.hideAllButtons();
     this.setupCardDrag();
 
+    this.sceneReady = true;
     if (this.onReady) this.onReady();
+
+    // Flush any state that arrived before the scene was ready
+    if (this.currentState) {
+      this.updateState(this.currentState);
+    }
   }
 
   /** Strip white/near-white background from avatar images. */
@@ -1066,6 +1075,7 @@ export class PokerScene extends Phaser.Scene {
 
   public updateState(state: PokerVisualState): void {
     this.currentState = state;
+    if (!this.sceneReady) return;
     this.clearDynamic();
     this.clearActiveGlow();
 
