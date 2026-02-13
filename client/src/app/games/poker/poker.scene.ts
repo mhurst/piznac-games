@@ -72,6 +72,11 @@ export class PokerScene extends Phaser.Scene {
   // Table label (dynamic variant name)
   private tableLabel!: Phaser.GameObjects.Text;
 
+  // Top banner (game info)
+  private bannerBg!: Phaser.GameObjects.Graphics;
+  private bannerVariantText!: Phaser.GameObjects.Text;
+  private bannerWildsText!: Phaser.GameObjects.Text;
+
   // Current visual state
   private currentState: PokerVisualState | null = null;
 
@@ -118,6 +123,7 @@ export class PokerScene extends Phaser.Scene {
   create(): void {
     this.removeWhiteBackground();
     this.drawTable();
+    this.createBanner();
     this.createMessage();
     this.createPotDisplay();
     this.createActionButtons();
@@ -232,6 +238,69 @@ export class PokerScene extends Phaser.Scene {
     this.tableLabel = this.add.text(cx, 341, "DEALER'S CHOICE", {
       fontSize: '14px', color: '#2a8f4f', fontFamily: 'Georgia', fontStyle: 'italic'
     }).setOrigin(0.5).setDepth(1).setAlpha(0.5);
+  }
+
+  // --- Top Banner (game info) ---
+
+  private createBanner(): void {
+    const bannerY = 4;
+    const bannerH = 36;
+    const padX = 20;
+
+    this.bannerBg = this.add.graphics().setDepth(2);
+    this.bannerBg.fillStyle(0x16213e, 0.85);
+    this.bannerBg.fillRoundedRect(padX, bannerY, this.CANVAS_W - padX * 2, bannerH, 6);
+    this.bannerBg.lineStyle(1, this.GOLD, 0.3);
+    this.bannerBg.strokeRoundedRect(padX, bannerY, this.CANVAS_W - padX * 2, bannerH, 6);
+
+    this.bannerVariantText = this.add.text(padX + 16, bannerY + bannerH / 2, '', {
+      fontSize: '15px', color: '#d4a847', fontFamily: 'Georgia', fontStyle: 'bold'
+    }).setOrigin(0, 0.5).setDepth(3);
+
+    this.bannerWildsText = this.add.text(this.CANVAS_W - padX - 16, bannerY + bannerH / 2, '', {
+      fontSize: '14px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'italic'
+    }).setOrigin(1, 0.5).setDepth(3);
+
+    this.setBannerVisible(false);
+  }
+
+  private setBannerVisible(visible: boolean): void {
+    this.bannerBg.setVisible(visible);
+    this.bannerVariantText.setVisible(visible);
+    this.bannerWildsText.setVisible(visible);
+  }
+
+  private updateBanner(state: PokerVisualState): void {
+    // Hide during overlay phases
+    if (state.isVariantSelect || state.isWildSelect || state.isBuyIn) {
+      this.setBannerVisible(false);
+      return;
+    }
+
+    // Show if we have a variant name (game is active)
+    if (!state.variantName) {
+      this.setBannerVisible(false);
+      return;
+    }
+
+    this.setBannerVisible(true);
+    this.bannerVariantText.setText(state.variantName);
+
+    // Build wilds string
+    if (state.activeWilds && state.activeWilds.length > 0) {
+      const themed: string[] = [];
+      const values: string[] = [];
+      for (const w of state.activeWilds) {
+        const opt = WILD_CARD_OPTIONS.find(o => o.id === w);
+        if (opt) { themed.push(opt.name); }
+        else { values.push(`${w}s`); }
+      }
+      const parts = [...themed];
+      if (values.length > 0) parts.push(values.join(', '));
+      this.bannerWildsText.setText(parts.join(', ') + ' wild');
+    } else {
+      this.bannerWildsText.setText('No wilds');
+    }
   }
 
   // --- Message ---
@@ -999,6 +1068,9 @@ export class PokerScene extends Phaser.Scene {
     this.currentState = state;
     this.clearDynamic();
     this.clearActiveGlow();
+
+    // Update top banner
+    this.updateBanner(state);
 
     // Update table label with current variant and wild info
     if (this.tableLabel) {
