@@ -9,6 +9,7 @@ import { MancalaScene, MancalaState } from '../../../games/mancala/mancala.scene
 import { MancalaAI } from '../../../core/ai/mancala-ai';
 import { Difficulty, DEFAULT_AI_CONFIG } from '../../../core/ai/game-ai.interface';
 import { AudioService } from '../../../core/audio/audio.service';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 interface SowResult {
   pits: number[];
@@ -35,6 +36,7 @@ export class SpMancalaComponent implements AfterViewInit, OnDestroy {
   private animating = false;
 
   difficulty: Difficulty = DEFAULT_AI_CONFIG.defaultDifficulty;
+  private aiName = 'AI';
   gameOver = false;
   gameStarted = false;
   playerSide: 1 | 2 = 1;
@@ -77,13 +79,14 @@ export class SpMancalaComponent implements AfterViewInit, OnDestroy {
     this.audio.init();
     this.aiSide = this.playerSide === 1 ? 2 : 1;
     this.ai.setPlayer(this.aiSide);
+    this.aiName = getRandomAINames(1)[0];
     this.gameStarted = true;
     this.gameOver = false;
     this.pits = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0];
     this.currentPlayer = 1;
 
     this.scene.resetGame();
-    this.scene.setPlayer(this.playerSide, 'You', 'AI');
+    this.scene.setPlayer(this.playerSide, 'You', this.aiName);
     this.updateScene(false);
 
     if (this.currentPlayer !== this.playerSide) {

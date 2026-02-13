@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import { YahtzeeScene, YahtzeeVisualState, YahtzeePlayerState } from '../../../games/yahtzee/yahtzee.scene';
 import { AudioService } from '../../../core/audio/audio.service';
 import { YahtzeeAI } from '../../../core/ai/yahtzee.ai';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 type ScoreCategory =
   | 'ones' | 'twos' | 'threes' | 'fours' | 'fives' | 'sixes'
@@ -48,6 +49,7 @@ export class SpYahtzeeComponent implements AfterViewInit, OnDestroy {
 
   // AI state
   private aiScores: Record<string, number | null> = {};
+  private aiName = 'CPU';
   difficulty = 'medium';
 
   // Game flow
@@ -90,6 +92,7 @@ export class SpYahtzeeComponent implements AfterViewInit, OnDestroy {
     this.turn = 1;
     this.isPlayerTurn = true;
     this.aiPlaying = false;
+    this.aiName = getRandomAINames(1)[0];
     this.resetDice();
     this.currentScores = {};
 
@@ -101,6 +104,7 @@ export class SpYahtzeeComponent implements AfterViewInit, OnDestroy {
     }
 
     this.scene.resetGame();
+    this.scene.setupPlayers(['You', this.aiName]);
     this.updateScene();
   }
 
@@ -334,7 +338,7 @@ export class SpYahtzeeComponent implements AfterViewInit, OnDestroy {
     this.gameOver = true;
     this.aiPlaying = false;
     const playerState = this.makePlayerState('You', this.playerScores);
-    const aiState = this.makePlayerState('CPU', this.aiScores);
+    const aiState = this.makePlayerState(this.aiName, this.aiScores);
     this.updateScene();
     const winnerIndex = playerState.totalScore >= aiState.totalScore ? 0 : 1;
     setTimeout(() => this.scene.showGameOver([playerState, aiState], winnerIndex), 400);
@@ -349,7 +353,7 @@ export class SpYahtzeeComponent implements AfterViewInit, OnDestroy {
       currentScores: this.currentScores,
       players: [
         this.makePlayerState('You', this.playerScores),
-        this.makePlayerState('CPU', this.aiScores)
+        this.makePlayerState(this.aiName, this.aiScores)
       ],
       currentPlayerIndex: this.isPlayerTurn ? 0 : 1,
       myIndex: 0,

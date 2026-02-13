@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../core/ai/ai-names';
 
 export interface FarklePlayer {
   name: string;
@@ -61,6 +62,7 @@ export class FarkleScene extends Phaser.Scene {
   private playerScoreTexts: Phaser.GameObjects.Text[] = [];
   private playerBars: Phaser.GameObjects.Graphics[] = [];
   private turnIndicators: Phaser.GameObjects.Graphics[] = [];
+  private playerAvatars: Phaser.GameObjects.GameObject[] = [];
   private currentPlayerText!: Phaser.GameObjects.Text;
   private turnScoreText!: Phaser.GameObjects.Text;
   private rollScoreText!: Phaser.GameObjects.Text;
@@ -90,14 +92,50 @@ export class FarkleScene extends Phaser.Scene {
       this.load.image(`fdieRed${i}`, basePath + `dieRed${i}.png`);
       this.load.image(`fdieSel${i}`, basePath + `dieWhite_border${i}.png`);
     }
+
+    // Avatar images
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
   }
 
   create(): void {
+    this.removeWhiteBackground();
     this.createInstruction();
     this.createDice();
     this.createButtons();
     this.createScorePanel();
     if (this.onReady) this.onReady();
+  }
+
+  /** Strip white/near-white background from avatar images. */
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
   }
 
   // --- Instruction Banner ---
@@ -255,7 +293,7 @@ export class FarkleScene extends Phaser.Scene {
       indicator.setVisible(false);
       this.turnIndicators.push(indicator);
 
-      const nameText = this.add.text(x + 35, rowY, '', {
+      const nameText = this.add.text(x + 55, rowY, '', {
         fontSize: '14px', color: colorStr[i], fontFamily: 'Arial', fontStyle: 'bold'
       }).setOrigin(0, 0.5).setVisible(false);
       this.playerNameTexts.push(nameText);
@@ -406,6 +444,10 @@ export class FarkleScene extends Phaser.Scene {
       this.bankZone.disableInteractive();
     }
 
+    // Clear old avatars
+    this.playerAvatars.forEach(a => a.destroy());
+    this.playerAvatars = [];
+
     // Update score panel
     const colors = [0x4a90d9, 0xe94560, 0x4caf50, 0xff9800];
     for (let i = 0; i < 4; i++) {
@@ -414,10 +456,35 @@ export class FarkleScene extends Phaser.Scene {
         this.playerNameTexts[i].setText(p.name).setVisible(true);
         this.playerScoreTexts[i].setText(p.totalScore.toLocaleString()).setVisible(true);
 
+        // Draw avatar next to name
+        const avatarX = this.SCORE_PANEL_X + 35;
+        const avatarY = 80 + i * 60;
+        const r = 14;
+        if (!p.isHuman) {
+          const imageKey = `avatar_${p.name}`;
+          if (this.textures.exists(imageKey)) {
+            const img = this.add.image(avatarX, avatarY, imageKey)
+              .setDisplaySize(r * 2, r * 2).setDepth(1);
+            this.playerAvatars.push(img);
+          } else {
+            const config = getAvatarConfig(p.name);
+            const gfx = this.add.graphics().setDepth(1);
+            gfx.fillStyle(config.color);
+            gfx.fillCircle(avatarX, avatarY, r);
+            gfx.lineStyle(1, 0xd4a847, 0.6);
+            gfx.strokeCircle(avatarX, avatarY, r);
+            this.playerAvatars.push(gfx);
+            const initial = this.add.text(avatarX, avatarY, config.initial, {
+              fontSize: '11px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(2);
+            this.playerAvatars.push(initial);
+          }
+        }
+
         // Progress bar
-        const barX = this.SCORE_PANEL_X + 35;
+        const barX = this.SCORE_PANEL_X + 55;
         const barY = 80 + i * 60 + 14;
-        const barW = this.SCORE_PANEL_W - 55;
+        const barW = this.SCORE_PANEL_W - 75;
         const progress = Math.min(p.totalScore / 10000, 1);
 
         this.playerBars[i].clear();

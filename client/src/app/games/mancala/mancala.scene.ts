@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../core/ai/ai-names';
 
 export interface MancalaState {
   pits: number[];          // 14 elements: [0-5] P1 pits, [6] P1 store, [7-12] P2 pits, [13] P2 store
@@ -62,6 +63,10 @@ export class MancalaScene extends Phaser.Scene {
   private highlightGraphics: Phaser.GameObjects.Graphics | null = null;
   private hoveredPit: number = -1;
 
+  // Avatar elements for AI label
+  private avatarElements: Phaser.GameObjects.GameObject[] = [];
+  private p2Name = 'Player 2';
+
   // Callbacks
   public onPitClick: ((pitIndex: number) => void) | null = null;
   public onReady: (() => void) | null = null;
@@ -70,7 +75,16 @@ export class MancalaScene extends Phaser.Scene {
     super({ key: 'MancalaScene' });
   }
 
+  preload(): void {
+    // Avatar images
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
+  }
+
   create(): void {
+    this.removeWhiteBackground();
     this.pits = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0];
 
     this.drawBoard();
@@ -81,6 +95,35 @@ export class MancalaScene extends Phaser.Scene {
     this.renderStones();
 
     if (this.onReady) this.onReady();
+  }
+
+  /** Strip white/near-white background from avatar images. */
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
   }
 
   private drawBoard(): void {
@@ -356,8 +399,46 @@ export class MancalaScene extends Phaser.Scene {
 
   public setPlayer(player: 1 | 2, p1Name: string = 'Player 1', p2Name: string = 'Player 2'): void {
     this.myPlayer = player;
+    this.p2Name = p2Name;
     this.p1Label.setText(p1Name);
     this.p2Label.setText(p2Name);
+    this.drawP2Avatar();
+  }
+
+  private drawP2Avatar(): void {
+    // Clear old avatar elements
+    this.avatarElements.forEach(el => el.destroy());
+    this.avatarElements = [];
+
+    const name = this.p2Name;
+    if (name === 'You' || name === 'Player 2') return;
+
+    const r = 16;
+    // Position avatar to the left of the P2 label
+    const labelX = this.p2Label.x;
+    const labelY = this.p2Label.y;
+    const textWidth = this.p2Label.width;
+    const ax = labelX - textWidth / 2 - r - 6;
+    const ay = labelY;
+
+    const imageKey = `avatar_${name}`;
+    if (this.textures.exists(imageKey)) {
+      const img = this.add.image(ax, ay, imageKey)
+        .setDisplaySize(r * 2, r * 2).setDepth(1);
+      this.avatarElements.push(img);
+    } else {
+      const config = getAvatarConfig(name);
+      const gfx = this.add.graphics().setDepth(1);
+      gfx.fillStyle(config.color);
+      gfx.fillCircle(ax, ay, r);
+      gfx.lineStyle(1, 0xd4a847, 0.6);
+      gfx.strokeCircle(ax, ay, r);
+      this.avatarElements.push(gfx);
+      const initial = this.add.text(ax, ay, config.initial, {
+        fontSize: '11px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(2);
+      this.avatarElements.push(initial);
+    }
   }
 
   public async animateSow(path: number[], finalPits: number[]): Promise<void> {

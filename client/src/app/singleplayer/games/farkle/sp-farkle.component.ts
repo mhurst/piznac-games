@@ -10,6 +10,7 @@ import { FarkleScene, FarkleVisualState, FarklePlayer } from '../../../games/far
 import { scoreSelection, hasScoringDice, findScoringDiceIndices, getAllScoringOptions } from '../../../games/farkle/farkle-scoring';
 import { FarkleAI } from '../../../core/ai/farkle.ai';
 import { AudioService } from '../../../core/audio/audio.service';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 interface PlayerState {
   name: string;
@@ -83,7 +84,7 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
 
     const count = parseInt(this.opponentCount, 10);
     this.players = [{ name: 'You', totalScore: 0, isHuman: true }];
-    const aiNames = ['CPU 1', 'CPU 2', 'CPU 3'];
+    const aiNames = getRandomAINames(count);
     for (let i = 0; i < count; i++) {
       this.players.push({ name: aiNames[i], totalScore: 0, isHuman: false });
     }

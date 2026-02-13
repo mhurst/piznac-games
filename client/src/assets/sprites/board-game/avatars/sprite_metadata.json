@@ -1,0 +1,88 @@
+{
+  "sprites": [
+    {
+      "name": "avatar_01",
+      "x": 0,
+      "y": 0,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_02",
+      "x": 128,
+      "y": 0,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_03",
+      "x": 256,
+      "y": 0,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_04",
+      "x": 0,
+      "y": 128,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_05",
+      "x": 128,
+      "y": 128,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_06",
+      "x": 256,
+      "y": 128,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_07",
+      "x": 0,
+      "y": 256,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_08",
+      "x": 128,
+      "y": 256,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_09",
+      "x": 256,
+      "y": 256,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_10",
+      "x": 0,
+      "y": 384,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_11",
+      "x": 128,
+      "y": 384,
+      "width": 128,
+      "height": 128
+    },
+    {
+      "name": "avatar_12",
+      "x": 256,
+      "y": 384,
+      "width": 128,
+      "height": 128
+    }
+  ]
+}

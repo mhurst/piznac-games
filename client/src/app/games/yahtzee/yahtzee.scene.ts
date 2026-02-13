@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../core/ai/ai-names';
 
 export interface YahtzeePlayerState {
   name: string;
@@ -34,16 +35,16 @@ const PLAYER_COLORS_HEX = [0x4a90d9, 0xe94560, 0x44cc44, 0xffaa00];
 
 export class YahtzeeScene extends Phaser.Scene {
   private readonly DICE_SIZE = 60;
-  private readonly PLAY_AREA_W = 570;
+  private readonly PLAY_AREA_W = 530;
   private readonly SCATTER_LEFT = 50;
-  private readonly SCATTER_RIGHT = 520;
+  private readonly SCATTER_RIGHT = 480;
   private readonly SCATTER_TOP = 110;
   private readonly SCATTER_BOTTOM = 340;
   private readonly KEPT_ROW_Y = 540;
   private readonly AI_KEPT_ROW_Y = 30;
   private readonly ROLL_BTN_Y = 430;
-  private readonly SCOREBOARD_X = 590;
-  private readonly SCOREBOARD_W = 300;
+  private readonly SCOREBOARD_X = 545;
+  private readonly SCOREBOARD_W = 345;
 
   // Dice
   private diceSprites: Phaser.GameObjects.Sprite[] = [];
@@ -72,6 +73,9 @@ export class YahtzeeScene extends Phaser.Scene {
   private bonusTexts: Phaser.GameObjects.Text[] = [];
   private totalTexts: Phaser.GameObjects.Text[] = [];
 
+  // Avatars in scoreboard header
+  private headerAvatars: Phaser.GameObjects.GameObject[] = [];
+
   // Game over
   private gameOverElements: Phaser.GameObjects.GameObject[] = [];
 
@@ -94,15 +98,51 @@ export class YahtzeeScene extends Phaser.Scene {
       this.load.image(`die${i}`, basePath + `dieWhite${i}.png`);
       this.load.image(`dieHeld${i}`, basePath + `dieWhite_border${i}.png`);
     }
+
+    // Avatar images
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
   }
 
   create(): void {
+    this.removeWhiteBackground();
     this.createInstruction();
     this.createDice();
     this.createRollButton();
     this.createTurnText();
     this.createScoreboard(2, ['You', 'CPU']);
     if (this.onReady) this.onReady();
+  }
+
+  /** Strip white/near-white background from avatar images. */
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
   }
 
   /** Rebuild scoreboard for a given number of players with names */
@@ -237,13 +277,13 @@ export class YahtzeeScene extends Phaser.Scene {
 
   private createScoreboard(numPlayers: number, names: string[]): void {
     const x = this.SCOREBOARD_X;
-    const y = 10;
+    const y = 4;
     const w = this.SCOREBOARD_W;
-    const rowH = 26;
+    const rowH = 30;
 
-    // Column layout: category label takes ~115px, rest split among players
-    const labelW = 115;
-    const colSpace = w - labelW - 10; // 10px right margin
+    // Column layout: category label takes ~120px, rest split among players
+    const labelW = 120;
+    const colSpace = w - labelW - 10;
     const colW = colSpace / numPlayers;
     const colXs: number[] = [];
     for (let p = 0; p < numPlayers; p++) {
@@ -252,34 +292,78 @@ export class YahtzeeScene extends Phaser.Scene {
 
     const panelBg = this.add.graphics();
     panelBg.fillStyle(0x16213e);
-    panelBg.fillRoundedRect(x, y, w, 580, 8);
+    panelBg.fillRoundedRect(x, y, w, 590, 8);
     panelBg.lineStyle(1, 0x0f3460);
-    panelBg.strokeRoundedRect(x, y, w, 580, 8);
+    panelBg.strokeRoundedRect(x, y, w, 590, 8);
     this.scoreboardElements.push(panelBg);
 
-    // Header
-    const catHeader = this.add.text(x + 15, y + 16, 'Category', {
-      fontSize: '12px', color: '#888888', fontFamily: 'Arial', fontStyle: 'bold'
+    // Clear old header avatars
+    this.headerAvatars.forEach(a => a.destroy());
+    this.headerAvatars = [];
+
+    // Header — avatar above name for AI players, taller header area
+    const headerCenterY = y + 30;
+    const catHeader = this.add.text(x + 15, headerCenterY, 'Category', {
+      fontSize: '13px', color: '#888888', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0, 0.5);
     this.scoreboardElements.push(catHeader);
 
     for (let p = 0; p < numPlayers; p++) {
-      const maxLen = numPlayers <= 2 ? 8 : numPlayers === 3 ? 5 : 4;
+      const maxLen = numPlayers <= 2 ? 10 : numPlayers === 3 ? 6 : 5;
       const displayName = names[p].length > maxLen ? names[p].substring(0, maxLen) : names[p];
-      const ht = this.add.text(colXs[p], y + 16, displayName, {
-        fontSize: '12px', color: PLAYER_COLORS[p % PLAYER_COLORS.length], fontFamily: 'Arial', fontStyle: 'bold'
-      }).setOrigin(0.5, 0.5);
-      this.scoreboardElements.push(ht);
-      this.headerTexts.push(ht);
+      const isHuman = names[p] === 'You';
+
+      if (!isHuman) {
+        // Avatar above name
+        const avatarR = 14;
+        const ax = colXs[p];
+        const ay = headerCenterY - 10;
+
+        const imageKey = `avatar_${names[p]}`;
+        if (this.textures.exists(imageKey)) {
+          const img = this.add.image(ax, ay, imageKey)
+            .setDisplaySize(avatarR * 2, avatarR * 2).setDepth(1);
+          this.headerAvatars.push(img);
+          this.scoreboardElements.push(img);
+        } else {
+          const config = getAvatarConfig(names[p]);
+          const gfx = this.add.graphics().setDepth(1);
+          gfx.fillStyle(config.color);
+          gfx.fillCircle(ax, ay, avatarR);
+          gfx.lineStyle(1, 0xd4a847, 0.6);
+          gfx.strokeCircle(ax, ay, avatarR);
+          this.headerAvatars.push(gfx);
+          this.scoreboardElements.push(gfx);
+          const initial = this.add.text(ax, ay, config.initial, {
+            fontSize: '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(2);
+          this.headerAvatars.push(initial);
+          this.scoreboardElements.push(initial);
+        }
+
+        // Name below avatar
+        const ht = this.add.text(colXs[p], headerCenterY + 12, displayName, {
+          fontSize: '13px', color: PLAYER_COLORS[p % PLAYER_COLORS.length], fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0.5, 0.5);
+        this.scoreboardElements.push(ht);
+        this.headerTexts.push(ht);
+      } else {
+        // Human — just centered name
+        const ht = this.add.text(colXs[p], headerCenterY, displayName, {
+          fontSize: '13px', color: PLAYER_COLORS[p % PLAYER_COLORS.length], fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0.5, 0.5);
+        this.scoreboardElements.push(ht);
+        this.headerTexts.push(ht);
+      }
     }
 
     // Divider under header
     const hd = this.add.graphics();
     hd.lineStyle(1, 0x0f3460);
-    hd.lineBetween(x + 8, y + 30, x + w - 8, y + 30);
+    hd.lineBetween(x + 8, y + 52, x + w - 8, y + 52);
     this.scoreboardElements.push(hd);
 
-    let rowY = y + 46;
+    let rowY = y + 68;
 
     // Top section
     for (const cat of TOP_CATEGORIES) {
@@ -293,36 +377,36 @@ export class YahtzeeScene extends Phaser.Scene {
     d1.lineStyle(1, 0x0f3460);
     d1.lineBetween(x + 8, rowY, x + w - 8, rowY);
     this.scoreboardElements.push(d1);
-    rowY += 10;
+    rowY += 12;
 
     const topLabel = this.add.text(x + 15, rowY, 'Top', {
-      fontSize: '11px', color: '#666666', fontFamily: 'Arial'
+      fontSize: '13px', color: '#666666', fontFamily: 'Arial'
     }).setOrigin(0, 0.5);
     this.scoreboardElements.push(topLabel);
 
     for (let p = 0; p < numPlayers; p++) {
       const tt = this.add.text(colXs[p], rowY, '0/63', {
-        fontSize: '11px', color: '#888888', fontFamily: 'Arial'
+        fontSize: '13px', color: '#888888', fontFamily: 'Arial'
       }).setOrigin(0.5, 0.5);
       this.scoreboardElements.push(tt);
       this.topTexts.push(tt);
     }
 
-    rowY += 16;
+    rowY += 18;
     const bonusLabel = this.add.text(x + 15, rowY, 'Bonus', {
-      fontSize: '11px', color: '#666666', fontFamily: 'Arial'
+      fontSize: '13px', color: '#666666', fontFamily: 'Arial'
     }).setOrigin(0, 0.5);
     this.scoreboardElements.push(bonusLabel);
 
     for (let p = 0; p < numPlayers; p++) {
       const bt = this.add.text(colXs[p], rowY, '--', {
-        fontSize: '11px', color: '#888888', fontFamily: 'Arial'
+        fontSize: '13px', color: '#888888', fontFamily: 'Arial'
       }).setOrigin(0.5, 0.5);
       this.scoreboardElements.push(bt);
       this.bonusTexts.push(bt);
     }
 
-    rowY += 14;
+    rowY += 16;
     const d2 = this.add.graphics();
     d2.lineStyle(1, 0x0f3460);
     d2.lineBetween(x + 8, rowY, x + w - 8, rowY);
@@ -341,16 +425,16 @@ export class YahtzeeScene extends Phaser.Scene {
     d3.lineStyle(1, 0x0f3460);
     d3.lineBetween(x + 8, rowY, x + w - 8, rowY);
     this.scoreboardElements.push(d3);
-    rowY += 12;
+    rowY += 14;
 
     const totalLabel = this.add.text(x + 15, rowY, 'TOTAL', {
-      fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      fontSize: '16px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0, 0.5);
     this.scoreboardElements.push(totalLabel);
 
     for (let p = 0; p < numPlayers; p++) {
       const tt = this.add.text(colXs[p], rowY, '0', {
-        fontSize: '14px', color: PLAYER_COLORS[p % PLAYER_COLORS.length], fontFamily: 'Arial', fontStyle: 'bold'
+        fontSize: '16px', color: PLAYER_COLORS[p % PLAYER_COLORS.length], fontFamily: 'Arial', fontStyle: 'bold'
       }).setOrigin(0.5, 0.5);
       this.scoreboardElements.push(tt);
       this.totalTexts.push(tt);
@@ -363,14 +447,14 @@ export class YahtzeeScene extends Phaser.Scene {
     this.scoreboardElements.push(rowBg);
 
     const lbl = this.add.text(px + 15, ry, label, {
-      fontSize: '13px', color: '#cccccc', fontFamily: 'Arial'
+      fontSize: '14px', color: '#cccccc', fontFamily: 'Arial'
     }).setOrigin(0, 0.5);
     this.scoreboardElements.push(lbl);
 
     this.scoreTexts[cat] = [];
     for (let p = 0; p < numPlayers; p++) {
       const st = this.add.text(colXs[p], ry, '--', {
-        fontSize: '13px', color: '#666666', fontFamily: 'Arial'
+        fontSize: '14px', color: '#666666', fontFamily: 'Arial'
       }).setOrigin(0.5, 0.5);
       this.scoreboardElements.push(st);
       this.scoreTexts[cat].push(st);
