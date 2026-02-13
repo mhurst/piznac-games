@@ -57,11 +57,12 @@ function shuffleDeck(deck) {
 }
 
 class Poker {
-  constructor(playerIds) {
+  constructor(playerIds, options = {}) {
     this.playerIds = [...playerIds];
     this.playerCount = playerIds.length;
     this.deck = shuffleDeck(createDeck());
     this.potManager = new PotManager();
+    this.lockedVariant = options.lockedVariant || null;
 
     // Per-player state
     this.players = {};
@@ -108,8 +109,14 @@ class Poker {
     this.smallBlindIndex = -1;
     this.bigBlindIndex = -1;
 
-    // Start with variant selection (dealer's choice)
-    this.startVariantSelect();
+    // Start with variant selection (dealer's choice) or skip if locked
+    if (this.lockedVariant) {
+      this.currentVariant = this.lockedVariant;
+      this.activeWilds = [];
+      this.phase = 'ante';
+    } else {
+      this.startVariantSelect();
+    }
   }
 
   drawCard() {
@@ -1106,7 +1113,13 @@ class Poker {
     const active = this.activePlayers;
     this.dealerIndex = (this.dealerIndex + 1) % active.length;
 
-    this.startVariantSelect();
+    if (this.lockedVariant) {
+      this.currentVariant = this.lockedVariant;
+      this.activeWilds = [];
+      this.phase = 'ante';
+    } else {
+      this.startVariantSelect();
+    }
     return { valid: true, newHand: true };
   }
 

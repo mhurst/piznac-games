@@ -1,7 +1,7 @@
 import { Component, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import Phaser from 'phaser';
@@ -81,6 +81,9 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   private smallBlindIndex = -1;
   private bigBlindIndex = -1;
 
+  // Locked variant (for standalone Texas Hold'em mode)
+  lockedVariant: PokerVariant | null = null;
+
   // Setup options
   gameStarted = false;
   gameOver = false;
@@ -95,10 +98,16 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private audio: AudioService
   ) {}
 
   ngAfterViewInit(): void {
+    // Detect locked variant from route
+    if (this.router.url.includes('poker-holdem')) {
+      this.lockedVariant = 'texas-holdem';
+    }
+
     this.scene = new PokerScene();
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
@@ -171,7 +180,14 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.dealerIndex = 0;
     this.scene.resetGame();
     // Brief delay to let Angular change detection show the canvas before updating scene
-    setTimeout(() => this.startVariantSelect(), 100);
+    if (this.lockedVariant) {
+      this.currentVariant = this.lockedVariant;
+      this.activeWilds = [];
+      this.phase = 'ante';
+      setTimeout(() => this.updateScene(''), 100);
+    } else {
+      setTimeout(() => this.startVariantSelect(), 100);
+    }
   }
 
   // --- Dealer's Choice (Variant Selection) ---
@@ -1391,7 +1407,14 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.pendingQueen = false;
     this.followTheQueenValue = null;
     this.dealerIndex = (this.dealerIndex + 1) % this.activePlayers.length;
-    this.startVariantSelect();
+    if (this.lockedVariant) {
+      this.currentVariant = this.lockedVariant;
+      this.activeWilds = [];
+      this.phase = 'ante';
+      this.updateScene('');
+    } else {
+      this.startVariantSelect();
+    }
   }
 
   newGame(): void {

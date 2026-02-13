@@ -106,6 +106,13 @@ export class SpGameSelectComponent {
       comingSoon: false
     },
     {
+      id: 'poker-holdem',
+      name: "Texas Hold'em",
+      description: "No-limit Texas Hold'em vs AI!",
+      icon: 'style',
+      comingSoon: false
+    },
+    {
       id: 'go-fish',
       name: 'Go Fish',
       description: 'Collect books of four! Ask opponents for cards.',

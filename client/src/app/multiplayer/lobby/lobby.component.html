@@ -1,6 +1,6 @@
 <div class="lobby-page">
   <div class="lobby-container">
-    <h1 class="title">{{ gameType | uppercase }}</h1>
+    <h1 class="title">{{ displayGameType | uppercase }}</h1>
 
     @if (!roomCode && !joining) {
       <div class="lobby-options">

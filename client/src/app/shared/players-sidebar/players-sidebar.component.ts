@@ -89,7 +89,9 @@ export class PlayersSidebarComponent implements OnInit, OnDestroy {
       'war': 'style',
       'farkle': 'casino',
       'blackjack': 'style',
-      'mancala': 'blur_circular'
+      'mancala': 'blur_circular',
+      'poker': 'style',
+      'poker-holdem': 'style'
     };
     return icons[gameType || ''] || 'sports_esports';
   }
@@ -103,7 +105,9 @@ export class PlayersSidebarComponent implements OnInit, OnDestroy {
       'war': 'War',
       'farkle': 'Farkle',
       'blackjack': 'Blackjack',
-      'mancala': 'Mancala'
+      'mancala': 'Mancala',
+      'poker': 'Poker',
+      'poker-holdem': "Texas Hold'em"
     };
     return names[gameType || ''] || 'a game';
   }

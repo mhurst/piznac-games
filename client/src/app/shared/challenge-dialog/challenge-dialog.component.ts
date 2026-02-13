@@ -47,7 +47,9 @@ export class ChallengeDialogComponent {
       'war': 'War',
       'farkle': 'Farkle',
       'blackjack': 'Blackjack',
-      'mancala': 'Mancala'
+      'mancala': 'Mancala',
+      'poker': 'Poker',
+      'poker-holdem': "Texas Hold'em"
     };
     return names[gameType] || gameType;
   }

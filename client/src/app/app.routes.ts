@@ -45,6 +45,7 @@ export const routes: Routes = [
   { path: 'multiplayer/game/mancala/:roomId', component: MancalaMpComponent },
   { path: 'multiplayer/game/yahtzee/:roomId', component: YahtzeeMpComponent },
   { path: 'multiplayer/game/poker/:roomId', component: PokerMpComponent },
+  { path: 'multiplayer/game/poker-holdem/:roomId', component: PokerMpComponent },
   { path: 'multiplayer/game/go-fish/:roomId', component: GoFishMpComponent },
 
   // Single player routes
@@ -61,6 +62,7 @@ export const routes: Routes = [
   { path: 'singleplayer/game/mancala', component: SpMancalaComponent },
   { path: 'singleplayer/game/darts', component: SpDartsComponent },
   { path: 'singleplayer/game/poker', component: SpPokerComponent },
+  { path: 'singleplayer/game/poker-holdem', component: SpPokerComponent },
   { path: 'singleplayer/game/go-fish', component: SpGoFishComponent },
 
   // Catch-all redirect

@@ -82,6 +82,12 @@ export class MpGameSelectComponent {
       icon: 'style'
     },
     {
+      id: 'poker-holdem',
+      name: "Texas Hold'em",
+      description: "2-6 players, No-limit Texas Hold'em!",
+      icon: 'style'
+    },
+    {
       id: 'go-fish',
       name: 'Go Fish',
       description: '2-4 players, collect books of four!',

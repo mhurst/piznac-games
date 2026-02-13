@@ -27,6 +27,7 @@ const MAX_PLAYERS = {
   'mancala': 2,
   'yahtzee': 4,
   'poker': 6,
+  'poker-holdem': 6,
   'go-fish': 4
 };
 
@@ -190,7 +191,7 @@ io.on('connection', (socket) => {
     });
 
     // For farkle/blackjack/yahtzee/poker/go-fish, don't auto-start — host must click Start Game when 2+ players joined
-    if (room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'go-fish') {
+    if (room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish') {
       // Notify all players in the room about the new player
       io.to(roomCode).emit('player-joined', { players: room.players, maxPlayers });
       console.log(`${name} joined ${room.gameType} room ${roomCode} (${room.players.length}/${maxPlayers})`);
@@ -231,7 +232,7 @@ io.on('connection', (socket) => {
   socket.on('start-game', ({ roomCode }) => {
     const room = rooms.get(roomCode);
     if (!room) return;
-    if (room.gameType !== 'farkle' && room.gameType !== 'blackjack' && room.gameType !== 'yahtzee' && room.gameType !== 'poker' && room.gameType !== 'go-fish') return;
+    if (room.gameType !== 'farkle' && room.gameType !== 'blackjack' && room.gameType !== 'yahtzee' && room.gameType !== 'poker' && room.gameType !== 'poker-holdem' && room.gameType !== 'go-fish') return;
     if (room.players[0].id !== socket.id) {
       socket.emit('invalid-move', { message: 'Only the host can start the game' });
       return;
@@ -250,6 +251,8 @@ io.on('connection', (socket) => {
       room.game = new Yahtzee(playerIds);
     } else if (room.gameType === 'poker') {
       room.game = new Poker(playerIds);
+    } else if (room.gameType === 'poker-holdem') {
+      room.game = new Poker(playerIds, { lockedVariant: 'texas-holdem' });
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(playerIds);
     }
@@ -304,7 +307,7 @@ io.on('connection', (socket) => {
       result = room.game.makeMove(socket.id, move);
     }
     // Handle Poker moves (check/call/raise/fold/allin/discard/stand-pat/next-hand)
-    else if (room.gameType === 'poker') {
+    else if (room.gameType === 'poker' || room.gameType === 'poker-holdem') {
       result = room.game.makeMove(socket.id, move);
     }
     // Handle Go Fish moves (ask)
@@ -428,6 +431,8 @@ io.on('connection', (socket) => {
         room.game = new Yahtzee(room.players.map(p => p.id));
       } else if (room.gameType === 'poker') {
         room.game = new Poker(room.players.map(p => p.id));
+      } else if (room.gameType === 'poker-holdem') {
+        room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem' });
       } else if (room.gameType === 'go-fish') {
         room.game = new GoFish(room.players.map(p => p.id));
       }
@@ -530,6 +535,8 @@ io.on('connection', (socket) => {
       room.game = new Yahtzee(room.players.map(p => p.id));
     } else if (room.gameType === 'poker') {
       room.game = new Poker(room.players.map(p => p.id));
+    } else if (room.gameType === 'poker-holdem') {
+      room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem' });
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(room.players.map(p => p.id));
     }
@@ -630,7 +637,7 @@ io.on('connection', (socket) => {
       const room = rooms.get(socket.roomCode);
       if (room) {
         // For farkle/blackjack/yahtzee/poker/go-fish with 3+ players remaining, remove player and continue
-        if ((room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'go-fish') && room.players.length > 2) {
+        if ((room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish') && room.players.length > 2) {
           room.players = room.players.filter(p => p.id !== socket.id);
           if (room.game && room.game.removePlayer) {
             room.game.removePlayer(socket.id);

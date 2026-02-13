@@ -90,6 +90,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.lobbyService.joinRoom(this.joinCode.trim(), this.playerName.trim());
   }
 
+  get displayGameType(): string {
+    const names: Record<string, string> = {
+      'poker-holdem': "Texas Hold'em",
+      'tic-tac-toe': 'Tic-Tac-Toe',
+      'connect-four': 'Connect Four',
+      'go-fish': 'Go Fish'
+    };
+    return names[this.gameType] || this.gameType;
+  }
+
   goBack(): void {
     this.router.navigate(['/multiplayer']);
   }
