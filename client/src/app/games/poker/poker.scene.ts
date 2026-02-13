@@ -889,6 +889,14 @@ export class PokerScene extends Phaser.Scene {
       this.buyInElements.push(noWilds);
     }
 
+    // Follow the Queen description
+    if (state.variantName === 'FOLLOW THE QUEEN') {
+      const ftqDesc = this.add.text(cx, cy - 10, 'Face-up Queen → next card\'s value wild too', {
+        fontSize: '12px', color: '#aaaaaa', fontFamily: 'Arial', fontStyle: 'italic'
+      }).setOrigin(0.5).setDepth(31);
+      this.buyInElements.push(ftqDesc);
+    }
+
     // Divider
     const div = this.add.graphics().setDepth(31);
     div.lineStyle(1, this.GOLD, 0.3);

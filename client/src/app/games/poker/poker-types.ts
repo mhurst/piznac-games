@@ -44,18 +44,20 @@ export type PokerPhase = 'variant-select' | 'wild-select' | 'ante' | 'dealing' |
   | 'street3' | 'street4' | 'street5' | 'street6' | 'street7' | 'betting3' | 'betting4' | 'betting5'
   | 'preflop' | 'flop' | 'turn' | 'river';
 
-export type PokerVariant = 'five-card-draw' | 'seven-card-stud' | 'texas-holdem';
+export type PokerVariant = 'five-card-draw' | 'seven-card-stud' | 'texas-holdem' | 'follow-the-queen';
 
 export const POKER_VARIANTS: { id: PokerVariant; name: string; description: string }[] = [
   { id: 'five-card-draw', name: '5-Card Draw', description: 'Classic draw poker — discard and draw up to 5 cards' },
   { id: 'seven-card-stud', name: '7-Card Stud', description: 'Progressive dealing — 7 cards, best 5 wins' },
   { id: 'texas-holdem', name: "Texas Hold'em", description: 'Community cards — 2 hole cards, 5 shared, best 5 wins' },
+  { id: 'follow-the-queen', name: 'Follow the Queen', description: 'Queens always wild — face-up Queen makes next card wild too' },
 ];
 
 export const VARIANT_NAMES: Record<PokerVariant, string> = {
   'five-card-draw': '5-Card Draw',
   'seven-card-stud': '7-Card Stud',
   'texas-holdem': "Texas Hold'em",
+  'follow-the-queen': 'FOLLOW THE QUEEN',
 };
 
 // --- Wild Cards ---
@@ -95,6 +97,7 @@ export const VARIANT_ALLOWS_WILDS: Record<PokerVariant, boolean> = {
   'five-card-draw': true,
   'seven-card-stud': true,
   'texas-holdem': false,
+  'follow-the-queen': false,
 };
 
 export type BettingAction = 'check' | 'call' | 'raise' | 'fold' | 'allin';

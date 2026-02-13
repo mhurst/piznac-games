@@ -72,6 +72,10 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   private studLastCardDown = true;
   private currentStreet = 0; // 3-7
 
+  // Follow the Queen state
+  private pendingQueen = false;
+  private followTheQueenValue: string | null = null;
+
   // Texas Hold'em state
   private communityCards: Card[] = [];
   private smallBlindIndex = -1;
@@ -193,7 +197,15 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
 
   private handleVariantSelect(variant: PokerVariant): void {
     this.currentVariant = variant;
-    if (VARIANT_ALLOWS_WILDS[variant]) {
+    if (variant === 'follow-the-queen') {
+      // Auto-set Queens wild, skip wild select
+      this.activeWilds = ['Q'];
+      this.pendingQueen = false;
+      this.followTheQueenValue = null;
+      this.studLastCardDown = true; // 7th card always face-down
+      this.phase = 'ante';
+      this.updateScene('');
+    } else if (VARIANT_ALLOWS_WILDS[variant]) {
       this.startWildSelect();
     } else {
       this.activeWilds = [];
@@ -233,7 +245,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
         }
         // AI randomly picks last-card-down for stud
         const aiLastCardDown = Math.random() < 0.6; // 60% face-down
-        this.handleWildCardSelect(wilds, this.currentVariant === 'seven-card-stud' ? aiLastCardDown : undefined);
+        this.handleWildCardSelect(wilds, this.isStud ? aiLastCardDown : undefined);
       }, 1000);
     } else {
       this.updateScene("Choose wild cards (or deal with none)!");
@@ -302,7 +314,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
       }
       this.currentBet = ANTE_AMOUNT;
 
-      if (this.currentVariant === 'seven-card-stud') {
+      if (this.isStud) {
         // Stud: deal 2 down + 1 up (3rd street)
         this.currentStreet = 3;
         this.startStudStreet3();
@@ -502,11 +514,32 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   // --- 7-Card Stud ---
 
   private get isStud(): boolean {
-    return this.currentVariant === 'seven-card-stud';
+    return this.currentVariant === 'seven-card-stud' || this.currentVariant === 'follow-the-queen';
   }
 
   private get isHoldem(): boolean {
     return this.currentVariant === 'texas-holdem';
+  }
+
+  private get isFollowTheQueen(): boolean {
+    return this.currentVariant === 'follow-the-queen';
+  }
+
+  /** Update wilds after face-up cards are dealt in Follow the Queen. */
+  private updateFollowTheQueenWilds(faceUpCards: Card[]): void {
+    for (const card of faceUpCards) {
+      if (card.value === 'Q') {
+        this.pendingQueen = true;
+      } else if (this.pendingQueen) {
+        this.followTheQueenValue = card.value;
+        this.pendingQueen = false;
+      }
+    }
+    // Rebuild activeWilds
+    this.activeWilds = ['Q'];
+    if (this.followTheQueenValue) {
+      this.activeWilds.push(this.followTheQueenValue as WildCardOption);
+    }
   }
 
   /** 3rd Street: deal 2 face-down + 1 face-up to each player, then betting1. */
@@ -521,10 +554,17 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
       }
     }
     // 1 face-up card
+    const faceUpCards: Card[] = [];
     for (const p of this.activePlayers) {
       const card = drawCards(this.deck, 1)[0];
       card.faceDown = false;
       p.hand.push(card);
+      faceUpCards.push(card);
+    }
+
+    // Follow the Queen: check face-up cards for Queens/followers
+    if (this.isFollowTheQueen) {
+      this.updateFollowTheQueenWilds(faceUpCards);
     }
 
     this.audio.playGame('poker', 'deal');
@@ -539,10 +579,17 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.phase = phaseMap[streetNum];
 
     const faceDown = (streetNum === 7 && this.studLastCardDown);
+    const faceUpCards: Card[] = [];
     for (const p of this.playersInHand) {
       const card = drawCards(this.deck, 1)[0];
       card.faceDown = faceDown;
       p.hand.push(card);
+      if (!faceDown) faceUpCards.push(card);
+    }
+
+    // Follow the Queen: check face-up cards for Queens/followers (streets 4-6 only)
+    if (this.isFollowTheQueen && faceUpCards.length > 0) {
+      this.updateFollowTheQueenWilds(faceUpCards);
     }
 
     this.audio.playGame('poker', 'deal');
@@ -1341,6 +1388,8 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.communityCards = [];
     this.smallBlindIndex = -1;
     this.bigBlindIndex = -1;
+    this.pendingQueen = false;
+    this.followTheQueenValue = null;
     this.dealerIndex = (this.dealerIndex + 1) % this.activePlayers.length;
     this.startVariantSelect();
   }

@@ -16,12 +16,14 @@ const VARIANT_NAMES = {
   'five-card-draw': '5-Card Draw',
   'seven-card-stud': '7-Card Stud',
   'texas-holdem': "Texas Hold'em",
+  'follow-the-queen': 'FOLLOW THE QUEEN',
 };
 
 const VARIANT_ALLOWS_WILDS = {
   'five-card-draw': true,
   'seven-card-stud': true,
   'texas-holdem': false,
+  'follow-the-queen': false,
 };
 
 const VALID_WILD_OPTIONS = [
@@ -96,6 +98,10 @@ class Poker {
     // 7-Card Stud state
     this.studLastCardDown = true;
     this.currentStreet = 0;
+
+    // Follow the Queen state
+    this.pendingQueen = false;
+    this.followTheQueenValue = null;
 
     // Texas Hold'em state
     this.communityCards = [];
@@ -188,7 +194,7 @@ class Poker {
       }
       this.currentBet = ANTE_AMOUNT;
 
-      if (this.currentVariant === 'seven-card-stud') {
+      if (this.isStud) {
         // Stud: deal 2 down + 1 up (3rd street)
         this.currentStreet = 3;
         this.startStudStreet3();
@@ -351,7 +357,28 @@ class Poker {
   }
 
   get isStud() {
-    return this.currentVariant === 'seven-card-stud';
+    return this.currentVariant === 'seven-card-stud' || this.currentVariant === 'follow-the-queen';
+  }
+
+  get isFollowTheQueen() {
+    return this.currentVariant === 'follow-the-queen';
+  }
+
+  /** Update wilds after face-up cards are dealt in Follow the Queen. */
+  updateFollowTheQueenWilds(faceUpCards) {
+    for (const card of faceUpCards) {
+      if (card.value === 'Q') {
+        this.pendingQueen = true;
+      } else if (this.pendingQueen) {
+        this.followTheQueenValue = card.value;
+        this.pendingQueen = false;
+      }
+    }
+    // Rebuild activeWilds
+    this.activeWilds = ['Q'];
+    if (this.followTheQueenValue) {
+      this.activeWilds.push(this.followTheQueenValue);
+    }
   }
 
   get isHoldem() {
@@ -369,10 +396,16 @@ class Poker {
       }
     }
     // 1 face-up card
+    const faceUpCards = [];
     for (const id of this.activePlayers) {
       const card = this.drawCard();
       card.faceDown = false;
       this.players[id].hand.push(card);
+      faceUpCards.push(card);
+    }
+    // Follow the Queen: check face-up cards for Queens/followers
+    if (this.isFollowTheQueen) {
+      this.updateFollowTheQueenWilds(faceUpCards);
     }
     this.startStudBettingRound('betting1');
   }
@@ -383,10 +416,17 @@ class Poker {
     this.phase = phaseMap[streetNum];
 
     const faceDown = (streetNum === 7 && this.studLastCardDown);
+    const faceUpCards = [];
     for (const id of this.playersInHand) {
       const card = this.drawCard();
       card.faceDown = faceDown;
       this.players[id].hand.push(card);
+      if (!faceDown) faceUpCards.push(card);
+    }
+
+    // Follow the Queen: check face-up cards for Queens/followers (streets 4-6 only)
+    if (this.isFollowTheQueen && faceUpCards.length > 0) {
+      this.updateFollowTheQueenWilds(faceUpCards);
     }
 
     const bettingMap = { 4: 'betting2', 5: 'betting3', 6: 'betting4', 7: 'betting5' };
@@ -537,6 +577,15 @@ class Poker {
     }
 
     this.currentVariant = variant;
+    if (variant === 'follow-the-queen') {
+      // Auto-set Queens wild, skip wild select
+      this.activeWilds = ['Q'];
+      this.pendingQueen = false;
+      this.followTheQueenValue = null;
+      this.studLastCardDown = true;
+      this.phase = 'ante';
+      return { valid: true, action: 'choose-variant', variant };
+    }
     if (VARIANT_ALLOWS_WILDS[variant]) {
       this.phase = 'wild-select';
       return { valid: true, action: 'choose-variant', variant };
@@ -1050,6 +1099,8 @@ class Poker {
     this.communityCards = [];
     this.smallBlindIndex = -1;
     this.bigBlindIndex = -1;
+    this.pendingQueen = false;
+    this.followTheQueenValue = null;
 
     // Rotate dealer
     const active = this.activePlayers;
