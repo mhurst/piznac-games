@@ -1265,7 +1265,7 @@ export class PokerScene extends Phaser.Scene {
     const baseCardSpacing = isMe ? this.MY_CARD_SPACING : this.OPP_CARD_SPACING;
     const avatarR = isMe ? this.MY_AVATAR_R : this.AVATAR_R;
     const plateH = isMe ? 28 : 34;
-    const overlap = 12;
+    const overlap = 2;
 
     // Key Y positions
     const plateTop = cy - plateH / 2;
