@@ -6,6 +6,17 @@ export class PokerScene extends Phaser.Scene {
   private readonly CARD_W = 85;
   private readonly CARD_H = 119;
   private readonly CARD_SPACING = 36;
+  // Opponent hand cards (smaller)
+  private readonly OPP_CARD_W = 62;
+  private readonly OPP_CARD_H = 87;
+  private readonly OPP_CARD_SPACING = 26;
+  // My hand cards
+  private readonly MY_CARD_W = 82;
+  private readonly MY_CARD_H = 115;
+  private readonly MY_CARD_SPACING = 36;
+  // Avatars
+  private readonly AVATAR_R = 26;
+  private readonly MY_AVATAR_R = 18;
   private readonly CANVAS_W = 990;
   private readonly CANVAS_H = 748;
 
@@ -326,7 +337,7 @@ export class PokerScene extends Phaser.Scene {
     this.messageBg.clear();
     if (!text) return;
     const cx = this.CANVAS_W / 2;
-    const y = 325 + yOffset;
+    const y = 324 + yOffset;
     const w = Math.max(text.length * 10 + 44, 220);
     this.messageBg.fillStyle(0x000000, 0.5);
     this.messageBg.fillRoundedRect(cx - w / 2, y, w, 33, 8);
@@ -529,15 +540,15 @@ export class PokerScene extends Phaser.Scene {
 
   // --- Player Positions (6 seats around oval) ---
 
-  private getPlayerPositions(count: number): { x: number; y: number }[] {
-    // Positions around an oval table for up to 6 players
+  private getPlayerPositions(count: number): { x: number; y: number; betX: number; betY: number }[] {
+    // x,y = center of name plate; betX,betY = absolute bet chip position (toward table center)
     const positions6 = [
-      { x: 495, y: 550 },  // bottom center (seat 0 - typically "you")
-      { x: 165, y: 462 },  // bottom left
-      { x: 110, y: 264 },  // top left
-      { x: 385, y: 132 },  // top center-left
-      { x: 605, y: 132 },  // top center-right
-      { x: 880, y: 264 },  // top right
+      { x: 495, y: 598, betX: 495, betY: 455 },   // seat 0: YOU (bottom center)
+      { x: 155, y: 440, betX: 280, betY: 385 },   // seat 1: lower-left
+      { x: 130, y: 220, betX: 255, betY: 265 },   // seat 2: upper-left
+      { x: 370, y: 100, betX: 400, betY: 215 },   // seat 3: top center-left
+      { x: 630, y: 100, betX: 600, betY: 215 },   // seat 4: top center-right
+      { x: 850, y: 220, betX: 725, betY: 265 },   // seat 5: upper-right
     ];
 
     if (count <= 2) return [positions6[0], positions6[3]];
@@ -549,14 +560,22 @@ export class PokerScene extends Phaser.Scene {
 
   // --- Active Player Glow ---
 
-  private drawActiveGlow(x: number, y: number): void {
+  private drawActiveGlow(cx: number, plateY: number, plateW: number, plateH: number, avatarCY: number, avatarR: number): void {
     this.glowGraphics.clear();
 
+    // Glow area covers avatar + plate
+    const glowTop = avatarCY - avatarR - 6;
+    const glowBottom = plateY + plateH / 2 + 6;
+    const glowW = Math.max(plateW + 12, avatarR * 2 + 16);
+    const glowH = glowBottom - glowTop;
+    const glowX = cx - glowW / 2;
+    const glowY = glowTop;
+
     if (!this.glowTween || !this.glowTween.isPlaying()) {
-      this.glowAlpha = 0.2;
+      this.glowAlpha = 0.15;
       this.glowTween = this.tweens.add({
         targets: this,
-        glowAlpha: { from: 0.15, to: 0.45 },
+        glowAlpha: { from: 0.1, to: 0.35 },
         duration: 800,
         yoyo: true,
         repeat: -1,
@@ -565,7 +584,7 @@ export class PokerScene extends Phaser.Scene {
           if (this.glowGraphics && this.glowGraphics.active) {
             this.glowGraphics.clear();
             this.glowGraphics.fillStyle(this.GOLD, this.glowAlpha);
-            this.glowGraphics.fillEllipse(x, y - 11, 198, 132);
+            this.glowGraphics.fillRoundedRect(glowX, glowY, glowW, glowH, 14);
           }
         }
       });
@@ -1041,7 +1060,7 @@ export class PokerScene extends Phaser.Scene {
   private drawCommunityCards(cards: Card[]): void {
     if (cards.length === 0) return;
     const cx = this.CANVAS_W / 2;
-    const y = 275;
+    const y = 280;
     const totalSlots = 5;
     const spacing = this.CARD_W + 8;
     const totalW = spacing * (totalSlots - 1);
@@ -1141,7 +1160,7 @@ export class PokerScene extends Phaser.Scene {
 
       const pos = positions[activePlayerIdx];
       const isMe = i === state.myIndex;
-      this.drawPlayer(player, pos.x, pos.y, state, isMe);
+      this.drawPlayer(player, pos, state, isMe);
       activePlayerIdx++;
     }
 
@@ -1151,7 +1170,7 @@ export class PokerScene extends Phaser.Scene {
     }
 
     // Pot display — shift above community cards for Hold'em
-    this.potText.setY(state.isHoldem ? 205 : 292);
+    this.potText.setY(state.isHoldem ? 210 : 285);
     if (state.pot > 0) {
       this.potText.setText(`Pot: $${state.pot.toLocaleString()}`);
     } else {
@@ -1159,7 +1178,7 @@ export class PokerScene extends Phaser.Scene {
     }
 
     // Message — shift below community cards for Hold'em
-    const msgY = state.isHoldem ? 360 : 341;
+    const msgY = state.isHoldem ? 365 : 340;
     this.messageText.setY(msgY);
     this.messageText.setText(state.message);
     if (state.message) {
@@ -1167,7 +1186,7 @@ export class PokerScene extends Phaser.Scene {
       if (state.message.includes('win') || state.message.includes('Win')) msgColor = 0x2e7d32;
       else if (state.message.includes('fold') || state.message.includes('Fold')) msgColor = 0x8b0000;
       else if (state.message.includes('split') || state.message.includes('Split')) msgColor = 0x555555;
-      this.drawMessageBg(state.message, msgColor, state.isHoldem ? 19 : 0);
+      this.drawMessageBg(state.message, msgColor, state.isHoldem ? 24 : 0);
     } else {
       this.messageBg.clear();
     }
@@ -1214,59 +1233,131 @@ export class PokerScene extends Phaser.Scene {
 
   // --- Draw Individual Player ---
 
-  private drawPlayer(player: PokerPlayer, cx: number, cy: number, state: PokerVisualState, isMe: boolean): void {
-    // Active player glow (works for both draw and stud betting phases)
-    if (player.isActive && (state.isBetting || state.isDrawPhase)) {
-      this.drawActiveGlow(cx, cy);
+  private drawPlayer(
+    player: PokerPlayer,
+    pos: { x: number; y: number; betX: number; betY: number },
+    state: PokerVisualState,
+    isMe: boolean
+  ): void {
+    const cx = pos.x;
+    const cy = pos.y; // center of name plate
+
+    const cardW = isMe ? this.MY_CARD_W : this.OPP_CARD_W;
+    const cardH = isMe ? this.MY_CARD_H : this.OPP_CARD_H;
+    const baseCardSpacing = isMe ? this.MY_CARD_SPACING : this.OPP_CARD_SPACING;
+    const avatarR = isMe ? this.MY_AVATAR_R : this.AVATAR_R;
+    const plateH = isMe ? 28 : 34;
+    const overlap = 12;
+
+    // Key Y positions
+    const plateTop = cy - plateH / 2;
+    const plateBottom = cy + plateH / 2;
+    const avatarCY = plateTop - avatarR + overlap;
+    const cardsCY = isMe
+      ? avatarCY - avatarR - 4 - cardH / 2   // cards above avatar for "me"
+      : plateBottom + 4 + cardH / 2;           // cards below plate for opponents
+
+    // --- Name plate background ---
+    const nameStr = isMe ? 'YOU' : player.name;
+    const nameColor = player.isActive ? '#ffd700' : (player.folded ? '#888888' : '#d4a847');
+
+    const nameText = this.trackDynamic(
+      this.add.text(cx, cy - 4, nameStr, {
+        fontSize: '12px', color: nameColor, fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11)
+    );
+
+    const chipsText = this.trackDynamic(
+      this.add.text(cx, cy + 9, `$${player.chips.toLocaleString()}`, {
+        fontSize: '11px', color: '#8a8a8a', fontFamily: 'Arial'
+      }).setOrigin(0.5).setDepth(11)
+    );
+
+    const plateW = Math.max(nameText.width + 28, isMe ? 80 : 90);
+
+    const plateBg = this.trackDynamic(this.add.graphics().setDepth(9));
+    const borderColor = player.isActive ? 0xffd700 : (player.folded ? 0x646464 : this.GOLD);
+    const borderAlpha = player.isActive ? 0.8 : 0.35;
+    plateBg.fillStyle(0x0c0f1c, 0.88);
+    plateBg.fillRoundedRect(cx - plateW / 2, plateTop, plateW, plateH, 10);
+    plateBg.lineStyle(1, borderColor, borderAlpha);
+    plateBg.strokeRoundedRect(cx - plateW / 2, plateTop, plateW, plateH, 10);
+
+    if (player.folded) {
+      plateBg.setAlpha(0.5);
+      nameText.setAlpha(0.5);
+      chipsText.setAlpha(0.5);
     }
 
-    // AI avatar
+    // Active player glow
+    if (player.isActive && (state.isBetting || state.isDrawPhase)) {
+      this.drawActiveGlow(cx, cy, plateW, plateH, avatarCY, avatarR);
+    }
+
+    // --- Avatar ---
+    const avatarBorderColor = player.isActive ? 0xffd700 : (player.folded ? 0x555555 : this.GOLD);
+
     if (!isMe) {
-      const avatar = getAvatarConfig(player.name);
-      const ax = cx;
-      const r = 36;
-      const ay = Math.max(r + 4, cy - 122);
-      const borderColor = player.isActive ? 0xffd700 : 0xd4a847;
       const imageKey = `avatar_${player.name}`;
       const hasSprite = this.textures.exists(imageKey);
 
-      if (hasSprite) {
-        this.trackDynamic(
-          this.add.image(ax, ay, imageKey)
-            .setDisplaySize(r * 2, r * 2)
-            .setDepth(10)
-            .setAlpha(player.folded ? 0.4 : 1)
-        );
-      } else {
-        // Fallback: colored circle with initial
-        const gfx = this.trackDynamic(this.add.graphics().setDepth(10));
-        gfx.lineStyle(2, borderColor, 1);
-        gfx.strokeCircle(ax, ay, r);
-        gfx.fillStyle(avatar.color, player.folded ? 0.4 : 1);
-        gfx.fillCircle(ax, ay, r - 1);
+      // Avatar background + border
+      const avatarGfx = this.trackDynamic(this.add.graphics().setDepth(10));
+      avatarGfx.fillStyle(0x1a1a2e, 1);
+      avatarGfx.fillCircle(cx, avatarCY, avatarR);
+      avatarGfx.lineStyle(3, avatarBorderColor, 1);
+      avatarGfx.strokeCircle(cx, avatarCY, avatarR + 1);
 
+      if (hasSprite) {
+        const avatarImg = this.trackDynamic(
+          this.add.image(cx, avatarCY, imageKey)
+            .setDisplaySize(avatarR * 2, avatarR * 2)
+            .setDepth(10)
+        );
+        if (player.folded) avatarImg.setAlpha(0.4);
+
+        // Circular mask for clean avatar crop
+        const maskGfx = this.make.graphics({});
+        maskGfx.fillStyle(0xffffff);
+        maskGfx.fillCircle(cx, avatarCY, avatarR - 1);
+        avatarImg.setMask(maskGfx.createGeometryMask());
+        this.trackDynamic(maskGfx as unknown as Phaser.GameObjects.GameObject);
+      } else {
+        const avatar = getAvatarConfig(player.name);
+        avatarGfx.fillStyle(avatar.color, player.folded ? 0.4 : 1);
+        avatarGfx.fillCircle(cx, avatarCY, avatarR - 2);
         this.trackDynamic(
-          this.add.text(ax, ay, avatar.initial, {
+          this.add.text(cx, avatarCY, avatar.initial, {
             fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
-          }).setOrigin(0.5).setDepth(10).setAlpha(player.folded ? 0.4 : 1)
+          }).setOrigin(0.5).setDepth(11).setAlpha(player.folded ? 0.4 : 1)
         );
       }
+
+      if (player.folded) avatarGfx.setAlpha(0.4);
+      if (player.isActive) {
+        const glowGfx = this.trackDynamic(this.add.graphics().setDepth(9));
+        glowGfx.fillStyle(0xffd700, 0.15);
+        glowGfx.fillCircle(cx, avatarCY, avatarR + 7);
+      }
+    } else {
+      // "Me" avatar — small green circle with "Y"
+      const avatarGfx = this.trackDynamic(this.add.graphics().setDepth(10));
+      avatarGfx.fillStyle(0x2e7d32, 1);
+      avatarGfx.fillCircle(cx, avatarCY, avatarR);
+      avatarGfx.lineStyle(3, 0xffd700, 1);
+      avatarGfx.strokeCircle(cx, avatarCY, avatarR + 1);
+      this.trackDynamic(
+        this.add.text(cx, avatarCY, 'Y', {
+          fontSize: '13px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(11)
+      );
     }
 
-    // Player name label
-    const nameColor = player.isActive ? '#ffd700' : (player.folded ? '#666666' : '#d4a847');
-    const nameStr = isMe ? 'YOU' : player.name;
-    this.trackDynamic(
-      this.add.text(cx, cy - 77, nameStr, {
-        fontSize: '14px', color: nameColor, fontFamily: 'Arial', fontStyle: 'bold'
-      }).setOrigin(0.5).setDepth(10)
-    );
-
-    // Dealer button
+    // --- Dealer button ---
     if (player.isDealer) {
-      const dbX = cx + 61;
-      const dbY = cy - 61;
-      const dbGfx = this.trackDynamic(this.add.graphics().setDepth(11));
+      const dbX = cx + plateW / 2 + 8;
+      const dbY = avatarCY;
+      const dbGfx = this.trackDynamic(this.add.graphics().setDepth(12));
       dbGfx.fillStyle(0xffffff);
       dbGfx.fillCircle(dbX, dbY, 11);
       dbGfx.fillStyle(0x000000);
@@ -1274,80 +1365,71 @@ export class PokerScene extends Phaser.Scene {
       this.trackDynamic(
         this.add.text(dbX, dbY, 'D', {
           fontSize: '11px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(12)
+        }).setOrigin(0.5).setDepth(13)
       );
     }
 
-    // SB/BB badges (Hold'em)
+    // --- SB/BB badges (Hold'em) ---
     if (state.isHoldem) {
       const playerIdx = state.players.indexOf(player);
       const isSB = playerIdx === state.smallBlindIndex;
       const isBB = playerIdx === state.bigBlindIndex;
       if (isSB || isBB) {
-        const badgeX = cx - 61;
-        const badgeY = cy - 61;
+        const badgeX = cx - plateW / 2 - 8;
+        const badgeY = avatarCY;
         const badgeLabel = isSB ? 'SB' : 'BB';
         const badgeColor = isSB ? 0x1a4a8b : 0x8b6b1a;
-        const badgeGfx = this.trackDynamic(this.add.graphics().setDepth(11));
+        const badgeGfx = this.trackDynamic(this.add.graphics().setDepth(12));
         badgeGfx.fillStyle(badgeColor);
         badgeGfx.fillRoundedRect(badgeX - 14, badgeY - 9, 28, 18, 4);
         this.trackDynamic(
           this.add.text(badgeX, badgeY, badgeLabel, {
             fontSize: '10px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
-          }).setOrigin(0.5).setDepth(12)
+          }).setOrigin(0.5).setDepth(13)
         );
       }
     }
 
-    // Cards
+    // --- Cards ---
     if (player.hand.length > 0 && !player.folded) {
       const handSize = player.hand.length;
-      // Reduce card spacing for hands > 5 cards (stud)
-      const cardSpacing = handSize > 5 ? 28 : this.CARD_SPACING;
-      const totalW = this.CARD_W + (handSize - 1) * cardSpacing;
-      const startX = cx - totalW / 2 + this.CARD_W / 2;
+      const cardSpacing = handSize > 5 ? (isMe ? 28 : 20) : baseCardSpacing;
+      const totalW = cardW + (handSize - 1) * cardSpacing;
+      const startX = cx - totalW / 2 + cardW / 2;
 
-      // For "my" hand, use drag-sortable order
       if (isMe) {
-        // Reset card order if hand size changed (new deal or after draw)
         if (handSize !== this.lastHandSize) {
           this.myCardOrder = Array.from({ length: handSize }, (_, i) => i);
           this.lastHandSize = handSize;
         }
-        // Ensure order array matches hand size
         if (this.myCardOrder.length !== handSize) {
           this.myCardOrder = Array.from({ length: handSize }, (_, i) => i);
         }
-
-        // Store slot X positions for drop target calculation
         this.myCardSlotXs = [];
         for (let i = 0; i < handSize; i++) {
           this.myCardSlotXs.push(startX + i * cardSpacing);
         }
       }
 
-      // Stud: face-up (show) cards shift toward table center, hole cards stay at player baseline
       const TABLE_CENTER_Y = this.CANVAS_H / 2;
-      const STUD_OFFSET = 18;
+      const STUD_OFFSET = 14;
 
       for (let visualPos = 0; visualPos < handSize; visualPos++) {
-        // For my hand, render in myCardOrder (but not for stud — no reorder); for others, render in order
         const canReorder = isMe && !state.isStud && !state.isHoldem;
         const actualIndex = canReorder ? this.myCardOrder[visualPos] : visualPos;
         const card = player.hand[actualIndex];
-        // For human player in stud, hole cards keep faceDown for positioning but show face-up
         const key = (isMe && state.isStud && card.faceDown) ? this.getCardFaceKey(card) : this.getCardKey(card);
-        const x = startX + visualPos * cardSpacing;
-        // In stud, face-up cards shift toward center: up for bottom players, down for top players
-        const cardY = (state.isStud && !card.faceDown) ? cy + (cy > TABLE_CENTER_Y ? -STUD_OFFSET : STUD_OFFSET) : cy;
+        const cardX = startX + visualPos * cardSpacing;
+        const cardY = (state.isStud && !card.faceDown)
+          ? cardsCY + (cy > TABLE_CENTER_Y ? -STUD_OFFSET : STUD_OFFSET)
+          : cardsCY;
 
         const sprite = this.trackDynamic(
-          this.add.sprite(x, cardY, key)
-            .setDisplaySize(this.CARD_W, this.CARD_H)
+          this.add.sprite(cardX, cardY, key)
+            .setDisplaySize(cardW, cardH)
             .setDepth(5 + visualPos)
         );
 
-        // Make my face-up cards draggable for sorting (not in stud — fixed order)
         if (isMe && !card.faceDown && !state.isStud && !state.isHoldem) {
           sprite.setInteractive({ useHandCursor: true, draggable: true });
           this.input.setDraggable(sprite);
@@ -1356,7 +1438,6 @@ export class PokerScene extends Phaser.Scene {
           sprite.setData('actualIndex', actualIndex);
           this.cardSprites.push(sprite);
 
-          // Card selection during draw phase (use pointerup to avoid conflict with drag)
           if (state.isDrawPhase && state.canDiscard) {
             sprite.on('pointerup', () => {
               if (!this.isDragging) {
@@ -1365,13 +1446,15 @@ export class PokerScene extends Phaser.Scene {
             });
           }
 
-          // Draw selection marker (uses actual hand index)
           if (this.selectedCards.has(actualIndex)) {
             const marker = this.trackDynamic(this.add.graphics().setDepth(15));
             marker.lineStyle(3, 0xe94560, 1);
-            marker.strokeRoundedRect(x - this.CARD_W / 2 - 2, cy - this.CARD_H / 2 - 2, this.CARD_W + 4, this.CARD_H + 4, 4);
+            marker.strokeRoundedRect(
+              cardX - cardW / 2 - 2, cardsCY - cardH / 2 - 2,
+              cardW + 4, cardH + 4, 4
+            );
             this.trackDynamic(
-              this.add.text(x, cy - this.CARD_H / 2 - 13, 'X', {
+              this.add.text(cardX, cardsCY - cardH / 2 - 13, 'X', {
                 fontSize: '15px', color: '#e94560', fontFamily: 'Arial', fontStyle: 'bold'
               }).setOrigin(0.5).setDepth(16)
             );
@@ -1381,46 +1464,43 @@ export class PokerScene extends Phaser.Scene {
       }
     }
 
-    // Folded indicator
+    // --- Folded indicator ---
     if (player.folded) {
       this.trackDynamic(
-        this.add.text(cx, cy, 'FOLDED', {
-          fontSize: '15px', color: '#666666', fontFamily: 'Arial', fontStyle: 'bold'
+        this.add.text(cx, cardsCY, 'FOLDED', {
+          fontSize: '13px', color: '#666666', fontFamily: 'Arial', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(10)
       );
     }
 
-    // All-in indicator
+    // Info position: below cards for opponents, above cards for me
+    const infoY = isMe ? cardsCY - cardH / 2 - 14 : cardsCY + cardH / 2 + 12;
+    const infoDir = isMe ? -1 : 1;
+
+    // --- All-in indicator ---
     if (player.allIn && !player.folded) {
       this.trackDynamic(
-        this.add.text(cx, cy + this.CARD_H / 2 + 15, 'ALL IN', {
+        this.add.text(cx, infoY, 'ALL IN', {
           fontSize: '13px', color: '#e94560', fontFamily: 'Arial', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(10)
+        }).setOrigin(0.5).setDepth(12)
       );
     }
 
-    // Current bet display
+    // --- Bet display (toward table center) ---
     if (player.bet > 0 && !player.folded) {
-      this.drawChipStack(cx, cy + this.CARD_H / 2 + 33, player.bet);
+      this.drawChipStack(pos.betX, pos.betY, player.bet);
     }
 
-    // Chips count
-    this.trackDynamic(
-      this.add.text(cx, cy + this.CARD_H / 2 + 61, `$${player.chips.toLocaleString()}`, {
-        fontSize: '12px', color: '#aaaaaa', fontFamily: 'Arial'
-      }).setOrigin(0.5).setDepth(10)
-    );
-
-    // Hand result (showdown)
+    // --- Hand result (showdown) ---
     if (player.handResult && state.isShowdown) {
       this.trackDynamic(
-        this.add.text(cx, cy + this.CARD_H / 2 + 15, player.handResult.name, {
-          fontSize: '13px', color: '#ffd700', fontFamily: 'Arial', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(10)
+        this.add.text(cx, infoY, player.handResult.name, {
+          fontSize: '12px', color: '#ffd700', fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(12)
       );
     }
 
-    // Win/lose result
+    // --- Win/lose result ---
     if (player.result) {
       let resultText = '';
       let resultColor = '#ffffff';
@@ -1435,11 +1515,12 @@ export class PokerScene extends Phaser.Scene {
         resultColor = '#e94560';
       }
       if (resultText) {
-        const ry = player.handResult && state.isShowdown ? cy + this.CARD_H / 2 + 33 : cy + this.CARD_H / 2 + 15;
+        const hasHandResult = player.handResult && state.isShowdown;
+        const ry = hasHandResult ? infoY + infoDir * 16 : infoY;
         this.trackDynamic(
           this.add.text(cx, ry, resultText, {
-            fontSize: '14px', color: resultColor, fontFamily: 'Arial', fontStyle: 'bold'
-          }).setOrigin(0.5).setDepth(10)
+            fontSize: '13px', color: resultColor, fontFamily: 'Arial', fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(12)
         );
       }
     }
