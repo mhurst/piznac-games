@@ -19,6 +19,9 @@ export class LobbyService {
   // Store the last game start data so the game component can read it after navigation
   public lastGameStartData: GameStartData | null = null;
 
+  // Store challenge lobby data so the lobby component can pick it up
+  public challengeLobbyData: { roomCode: string; players: Player[]; maxPlayers: number } | null = null;
+
   constructor(private socketService: SocketService) {}
 
   createRoom(gameType: string, playerName: string): void {
@@ -45,8 +48,8 @@ export class LobbyService {
     return this.socketService.on<{ players: Player[]; maxPlayers: number }>('player-joined');
   }
 
-  startGame(roomCode: string): void {
-    this.socketService.emit('start-game', { roomCode });
+  startGame(roomCode: string, aiCount: number = 0): void {
+    this.socketService.emit('start-game', { roomCode, aiCount });
   }
 
   onOpponentDisconnected(): Observable<void> {

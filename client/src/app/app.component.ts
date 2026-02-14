@@ -116,13 +116,23 @@ export class AppComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.challengeService.challengeAccepted$.subscribe(data => {
         this.audioService.playUI('game-start');
-        // Store game start data for the game component
-        this.lobbyService.lastGameStartData = {
-          players: data.players,
-          gameState: data.gameState
-        };
-        // Navigate to the game
-        this.router.navigate(['/multiplayer/game', data.gameType, data.roomCode]);
+        if (data.lobbyMode) {
+          // Poker challenges: go to lobby so host can add AI bots
+          this.lobbyService.challengeLobbyData = {
+            roomCode: data.roomCode,
+            players: data.players,
+            maxPlayers: data.maxPlayers || 6
+          };
+          this.router.navigate(['/multiplayer/lobby', data.gameType]);
+        } else {
+          // Store game start data for the game component
+          this.lobbyService.lastGameStartData = {
+            players: data.players,
+            gameState: data.gameState
+          };
+          // Navigate to the game
+          this.router.navigate(['/multiplayer/game', data.gameType, data.roomCode]);
+        }
       })
     );
   }

@@ -63,6 +63,7 @@ class Poker {
     this.deck = shuffleDeck(createDeck());
     this.potManager = new PotManager();
     this.lockedVariant = options.lockedVariant || null;
+    this.aiBots = new Set(options.aiBots || []);
 
     // Per-player state
     this.players = {};
@@ -1229,6 +1230,28 @@ class Poker {
       smallBlindIndex: this.smallBlindIndex,
       bigBlindIndex: this.bigBlindIndex
     };
+  }
+
+  isAI(playerId) {
+    return this.aiBots.has(playerId);
+  }
+
+  getCurrentPlayerIsAI() {
+    if (this.phase === 'variant-select' || this.phase === 'wild-select') {
+      return this.isAI(this.dealerPlayerId);
+    }
+    if (this.phase === 'ante') {
+      return this.activePlayers.some(id => this.isAI(id));
+    }
+    if (this.isBettingPhase() || this.phase === 'draw') {
+      const inHand = this.playersInHand;
+      const currentId = inHand.length > 0 ? inHand[this.currentPlayerIndex % inHand.length] : null;
+      return currentId ? this.isAI(currentId) : false;
+    }
+    if (this.phase === 'settlement') {
+      return true;
+    }
+    return false;
   }
 }
 

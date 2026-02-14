@@ -13,7 +13,10 @@ const Mancala = require('./games/mancala');
 const Yahtzee = require('./games/yahtzee');
 const Poker = require('./games/poker');
 const GoFish = require('./games/go-fish');
+const { getAIBettingDecision, getAIDrawDecision, getAIVariantChoice, getAIWildChoice, getAIDelay } = require('./games/poker-ai');
 const { validateUsername } = require('./utils/validate-username');
+
+const AI_NAMES = ['JohnnyBoy', 'JayJay', 'JimBob', 'Sal', 'SallyJoe', 'June'];
 
 // Max players per game type
 const MAX_PLAYERS = {
@@ -82,6 +85,177 @@ function generateRoomCode() {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+/**
+ * Emit move-made to all human players in a room (skip AI bot IDs).
+ */
+function emitToHumans(room, event, dataFn) {
+  room.players.forEach(player => {
+    if (room.game && room.game.isAI && room.game.isAI(player.id)) return;
+    const playerSocket = io.sockets.sockets.get(player.id);
+    if (playerSocket) {
+      playerSocket.emit(event, typeof dataFn === 'function' ? dataFn(player.id) : dataFn);
+    }
+  });
+}
+
+/**
+ * Schedule AI moves if the current player is an AI bot.
+ * Chains automatically for consecutive AI turns.
+ */
+function scheduleAIMoveIfNeeded(room, roomCode) {
+  if (!room || !room.game || !room.game.isAI) return;
+  const game = room.game;
+  if (game.gameOver) return;
+
+  const phase = game.phase;
+
+  // Variant select — AI dealer picks a variant
+  if (phase === 'variant-select' && game.isAI(game.dealerPlayerId)) {
+    setTimeout(() => {
+      if (!rooms.has(roomCode)) return;
+      const variant = getAIVariantChoice();
+      const result = game.makeMove(game.dealerPlayerId, { type: 'choose-variant', variant });
+      if (result.valid) {
+        emitMoveMadeToHumans(room, game.dealerPlayerId, { type: 'choose-variant', variant }, result);
+        scheduleAIMoveIfNeeded(room, roomCode);
+      }
+    }, getAIDelay());
+    return;
+  }
+
+  // Wild select — AI dealer picks wilds
+  if (phase === 'wild-select' && game.isAI(game.dealerPlayerId)) {
+    setTimeout(() => {
+      if (!rooms.has(roomCode)) return;
+      const choice = getAIWildChoice(game.currentVariant);
+      const result = game.makeMove(game.dealerPlayerId, { type: 'choose-wilds', wilds: choice.wilds, lastCardDown: choice.lastCardDown });
+      if (result.valid) {
+        emitMoveMadeToHumans(room, game.dealerPlayerId, { type: 'choose-wilds', wilds: choice.wilds, lastCardDown: choice.lastCardDown }, result);
+        scheduleAIMoveIfNeeded(room, roomCode);
+      }
+    }, getAIDelay());
+    return;
+  }
+
+  // Ante — AI auto-buy-in (any AI triggers it)
+  if (phase === 'ante') {
+    const aiPlayer = game.activePlayers.find(id => game.isAI(id));
+    if (aiPlayer) {
+      setTimeout(() => {
+        if (!rooms.has(roomCode)) return;
+        if (game.phase !== 'ante') return;
+        const result = game.makeMove(aiPlayer, { type: 'buy-in' });
+        if (result.valid) {
+          emitMoveMadeToHumans(room, aiPlayer, { type: 'buy-in' }, result);
+          scheduleAIMoveIfNeeded(room, roomCode);
+        }
+      }, 500);
+    }
+    return;
+  }
+
+  // Betting phases
+  if (game.isBettingPhase()) {
+    const inHand = game.playersInHand;
+    const currentId = inHand.length > 0 ? inHand[game.currentPlayerIndex % inHand.length] : null;
+    if (currentId && game.isAI(currentId)) {
+      setTimeout(() => {
+        if (!rooms.has(roomCode)) return;
+        if (!game.isBettingPhase()) return;
+        const player = game.players[currentId];
+        if (!player || player.folded || player.allIn) return;
+
+        const context = {
+          hand: player.hand,
+          chips: player.chips,
+          currentBet: game.currentBet,
+          myBet: player.bet,
+          pot: game.potManager.getTotalPot(),
+          minRaise: game.minRaise,
+          playersInHand: inHand.length,
+          phase: game.phase,
+          wilds: game.activeWilds,
+          communityCards: game.communityCards,
+          isHoldem: game.isHoldem
+        };
+
+        const decision = getAIBettingDecision('medium', context);
+        let move;
+        if (decision.action === 'raise') {
+          move = { type: 'raise', amount: decision.raiseAmount };
+        } else {
+          move = { type: decision.action };
+        }
+
+        const result = game.makeMove(currentId, move);
+        if (result.valid) {
+          emitMoveMadeToHumans(room, currentId, move, result);
+          scheduleAIMoveIfNeeded(room, roomCode);
+        }
+      }, getAIDelay());
+    }
+    return;
+  }
+
+  // Draw phase
+  if (phase === 'draw') {
+    const inHand = game.playersInHand;
+    const currentId = inHand.length > 0 ? inHand[game.currentPlayerIndex % inHand.length] : null;
+    if (currentId && game.isAI(currentId)) {
+      setTimeout(() => {
+        if (!rooms.has(roomCode)) return;
+        if (game.phase !== 'draw') return;
+        const player = game.players[currentId];
+        if (!player || player.allIn || player.hasActed) return;
+
+        const discards = getAIDrawDecision('medium', player.hand, game.activeWilds);
+        let move;
+        if (discards.length === 0) {
+          move = { type: 'stand-pat' };
+        } else {
+          move = { type: 'discard', cardIndices: discards };
+        }
+
+        const result = game.makeMove(currentId, move);
+        if (result.valid) {
+          emitMoveMadeToHumans(room, currentId, move, result);
+          scheduleAIMoveIfNeeded(room, roomCode);
+        }
+      }, getAIDelay());
+    }
+    return;
+  }
+
+  // Settlement — let humans click "Next Hand" at their own pace
+  if (phase === 'settlement') {
+    return;
+  }
+}
+
+/**
+ * Emit move-made with player-specific game state to all human players.
+ */
+function emitMoveMadeToHumans(room, playerId, move, result) {
+  const resultPayload = {
+    action: result.action, handOver: result.handOver, newHand: result.newHand,
+    count: result.count, newCards: result.newCards, variant: result.variant, wilds: result.wilds,
+    amount: result.amount
+  };
+
+  room.players.forEach(player => {
+    if (room.game && room.game.isAI && room.game.isAI(player.id)) return;
+    const playerSocket = io.sockets.sockets.get(player.id);
+    if (playerSocket) {
+      playerSocket.emit('move-made', {
+        playerId,
+        move,
+        result: resultPayload,
+        gameState: room.game.getState(player.id)
+      });
+    }
+  });
 }
 
 io.on('connection', (socket) => {
@@ -229,7 +403,7 @@ io.on('connection', (socket) => {
   });
 
   // Host starts a farkle/blackjack game (when 2+ players have joined)
-  socket.on('start-game', ({ roomCode }) => {
+  socket.on('start-game', ({ roomCode, aiCount }) => {
     const room = rooms.get(roomCode);
     if (!room) return;
     if (room.gameType !== 'farkle' && room.gameType !== 'blackjack' && room.gameType !== 'yahtzee' && room.gameType !== 'poker' && room.gameType !== 'poker-holdem' && room.gameType !== 'go-fish') return;
@@ -237,6 +411,22 @@ io.on('connection', (socket) => {
       socket.emit('invalid-move', { message: 'Only the host can start the game' });
       return;
     }
+
+    // Add AI bots for poker games
+    const isPoker = room.gameType === 'poker' || room.gameType === 'poker-holdem';
+    const botIds = [];
+    if (isPoker && aiCount > 0) {
+      const maxPlayers = MAX_PLAYERS[room.gameType] || 6;
+      const botsToAdd = Math.min(aiCount, maxPlayers - room.players.length);
+      const shuffledNames = [...AI_NAMES].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < botsToAdd; i++) {
+        const botId = `ai-bot-${i}`;
+        const botName = shuffledNames[i % shuffledNames.length];
+        room.players.push({ id: botId, name: botName });
+        botIds.push(botId);
+      }
+    }
+
     if (room.players.length < 2) {
       socket.emit('invalid-move', { message: 'Need at least 2 players' });
       return;
@@ -250,14 +440,15 @@ io.on('connection', (socket) => {
     } else if (room.gameType === 'yahtzee') {
       room.game = new Yahtzee(playerIds);
     } else if (room.gameType === 'poker') {
-      room.game = new Poker(playerIds);
+      room.game = new Poker(playerIds, { aiBots: botIds });
     } else if (room.gameType === 'poker-holdem') {
-      room.game = new Poker(playerIds, { lockedVariant: 'texas-holdem' });
+      room.game = new Poker(playerIds, { lockedVariant: 'texas-holdem', aiBots: botIds });
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(playerIds);
     }
 
     room.players.forEach(player => {
+      if (room.game && room.game.isAI && room.game.isAI(player.id)) return;
       const playerSocket = io.sockets.sockets.get(player.id);
       if (playerSocket) {
         playerSocket.emit('game-start', {
@@ -267,7 +458,12 @@ io.on('connection', (socket) => {
       }
     });
 
-    console.log(`${room.gameType} game started in room ${roomCode} with ${room.players.length} players`);
+    console.log(`${room.gameType} game started in room ${roomCode} with ${room.players.length} players (${botIds.length} AI): ${room.players.map(p => p.name + '(' + p.id + ')').join(', ')}`);
+
+    // Schedule AI move if first player is AI
+    if (isPoker && botIds.length > 0) {
+      scheduleAIMoveIfNeeded(room, roomCode);
+    }
   });
 
   // Client requests current game state (after navigation)
@@ -371,8 +567,9 @@ io.on('connection', (socket) => {
         newBook: result.newBook
       };
 
-      // Send player-specific state to each player
+      // Send player-specific state to each player (skip AI bots)
       room.players.forEach(player => {
+        if (room.game && room.game.isAI && room.game.isAI(player.id)) return;
         const playerSocket = io.sockets.sockets.get(player.id);
         if (playerSocket) {
           playerSocket.emit('move-made', {
@@ -391,6 +588,11 @@ io.on('connection', (socket) => {
           isDraw: result.isDraw
         });
       }
+
+      // After a human move in poker, check if next player is AI
+      if ((room.gameType === 'poker' || room.gameType === 'poker-holdem') && room.game.aiBots && room.game.aiBots.size > 0) {
+        scheduleAIMoveIfNeeded(room, roomCode);
+      }
     } else {
       socket.emit('invalid-move', { message: result.message });
     }
@@ -407,8 +609,14 @@ io.on('connection', (socket) => {
     // Notify the other player
     socket.to(roomCode).emit('rematch-requested', { playerId: socket.id });
 
-    // If all players want rematch, restart
-    if (room.rematchRequests.size === room.players.length) {
+    // For poker with AI, count only human players for rematch threshold
+    const isPoker = room.gameType === 'poker' || room.gameType === 'poker-holdem';
+    const botIds = isPoker && room.game && room.game.aiBots ? [...room.game.aiBots] : [];
+    const humanCount = room.players.filter(p => !botIds.includes(p.id)).length;
+    const rematchThreshold = isPoker && botIds.length > 0 ? humanCount : room.players.length;
+
+    // If all (human) players want rematch, restart
+    if (room.rematchRequests.size >= rematchThreshold) {
       room.rematchRequests.clear();
 
       if (room.gameType === 'tic-tac-toe') {
@@ -430,15 +638,16 @@ io.on('connection', (socket) => {
       } else if (room.gameType === 'yahtzee') {
         room.game = new Yahtzee(room.players.map(p => p.id));
       } else if (room.gameType === 'poker') {
-        room.game = new Poker(room.players.map(p => p.id));
+        room.game = new Poker(room.players.map(p => p.id), { aiBots: botIds });
       } else if (room.gameType === 'poker-holdem') {
-        room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem' });
+        room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem', aiBots: botIds });
       } else if (room.gameType === 'go-fish') {
         room.game = new GoFish(room.players.map(p => p.id));
       }
 
-      // Send player-specific state to each player
+      // Send player-specific state to each player (skip AI bots)
       room.players.forEach(player => {
+        if (room.game && room.game.isAI && room.game.isAI(player.id)) return;
         const playerSocket = io.sockets.sockets.get(player.id);
         if (playerSocket) {
           playerSocket.emit('game-start', {
@@ -447,6 +656,11 @@ io.on('connection', (socket) => {
           });
         }
       });
+
+      // Schedule AI move for new poker game
+      if (isPoker && botIds.length > 0) {
+        scheduleAIMoveIfNeeded(room, roomCode);
+      }
     }
   });
 
@@ -514,7 +728,55 @@ io.on('connection', (socket) => {
       game: null
     };
 
-    // Start the game
+    // For poker, send both players to the lobby instead of auto-starting
+    const isPokerChallenge = room.gameType === 'poker' || room.gameType === 'poker-holdem';
+    if (isPokerChallenge) {
+      const maxPlayers = MAX_PLAYERS[room.gameType] || 6;
+      room.maxPlayers = maxPlayers;
+      rooms.set(roomCode, room);
+
+      const fromSocket = io.sockets.sockets.get(challenge.from.id);
+      const toSocket = io.sockets.sockets.get(challenge.to.id);
+
+      if (fromSocket) {
+        fromSocket.join(roomCode);
+        fromSocket.roomCode = roomCode;
+      }
+      if (toSocket) {
+        toSocket.join(roomCode);
+        toSocket.roomCode = roomCode;
+      }
+
+      room.players.forEach(player => {
+        const u = users.get(player.id);
+        if (u) {
+          u.status = 'in-game';
+          u.currentRoom = roomCode;
+          u.gameType = room.gameType;
+          broadcastToAll('user-status', { id: player.id, status: 'in-game', gameType: room.gameType });
+        }
+      });
+
+      // Send both to lobby (challenger is host)
+      if (fromSocket) {
+        fromSocket.emit('challenge-accepted', {
+          challengeId, roomCode, gameType: challenge.gameType,
+          players: room.players, gameState: null, lobbyMode: true, maxPlayers
+        });
+      }
+      if (toSocket) {
+        toSocket.emit('challenge-accepted', {
+          challengeId, roomCode, gameType: challenge.gameType,
+          players: room.players, gameState: null, lobbyMode: true, maxPlayers
+        });
+      }
+
+      challenges.delete(challengeId);
+      console.log(`Poker challenge accepted: ${challenge.from.name} vs ${challenge.to.name} → lobby ${roomCode}`);
+      return;
+    }
+
+    // Start the game (non-poker)
     if (room.gameType === 'tic-tac-toe') {
       room.game = new TicTacToe(room.players[0].id, room.players[1].id);
     } else if (room.gameType === 'connect-four') {
@@ -533,10 +795,6 @@ io.on('connection', (socket) => {
       room.game = new Blackjack(room.players.map(p => p.id));
     } else if (room.gameType === 'yahtzee') {
       room.game = new Yahtzee(room.players.map(p => p.id));
-    } else if (room.gameType === 'poker') {
-      room.game = new Poker(room.players.map(p => p.id));
-    } else if (room.gameType === 'poker-holdem') {
-      room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem' });
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(room.players.map(p => p.id));
     }
@@ -636,22 +894,44 @@ io.on('connection', (socket) => {
     if (socket.roomCode) {
       const room = rooms.get(socket.roomCode);
       if (room) {
+        const isPoker = room.gameType === 'poker' || room.gameType === 'poker-holdem';
+        const hasBots = isPoker && room.game && room.game.aiBots && room.game.aiBots.size > 0;
+
         // For farkle/blackjack/yahtzee/poker/go-fish with 3+ players remaining, remove player and continue
         if ((room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish') && room.players.length > 2) {
           room.players = room.players.filter(p => p.id !== socket.id);
           if (room.game && room.game.removePlayer) {
             room.game.removePlayer(socket.id);
           }
-          // Notify remaining players
-          io.to(socket.roomCode).emit('player-left', {
-            leftPlayerId: socket.id,
-            players: room.players,
-            gameState: room.game ? room.game.getState() : null
-          });
+
+          // Check if all humans have left (only AI bots remain)
+          const humanPlayers = room.players.filter(p => !(hasBots && room.game.isAI(p.id)));
+          if (humanPlayers.length === 0) {
+            rooms.delete(socket.roomCode);
+            console.log(`Room ${socket.roomCode} cleaned up — all humans left`);
+          } else {
+            // Notify remaining human players
+            room.players.forEach(player => {
+              if (hasBots && room.game.isAI(player.id)) return;
+              const playerSocket = io.sockets.sockets.get(player.id);
+              if (playerSocket) {
+                playerSocket.emit('player-left', {
+                  leftPlayerId: socket.id,
+                  players: room.players,
+                  gameState: room.game ? room.game.getState(player.id) : null
+                });
+              }
+            });
+
+            // If it was the disconnected player's turn, AI might need to act next
+            if (hasBots) {
+              scheduleAIMoveIfNeeded(room, socket.roomCode);
+            }
+          }
         } else {
-          // Standard 2-player disconnect: end the room
+          // Standard 2-player disconnect or last human leaving: end the room
           room.players.forEach(player => {
-            if (player.id !== socket.id) {
+            if (player.id !== socket.id && !(hasBots && room.game && room.game.isAI(player.id))) {
               const u = users.get(player.id);
               if (u) {
                 u.status = 'available';

@@ -16,6 +16,8 @@ export interface ChallengeAcceptedData {
   gameType: string;
   players: { id: string; name: string }[];
   gameState: any;
+  lobbyMode?: boolean;
+  maxPlayers?: number;
 }
 
 @Injectable({

@@ -40,6 +40,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   roomPlayers: Player[] = [];
   maxPlayers = 2;
   isHost = false;
+  aiCount = 0;
 
   private subscriptions: Subscription[] = [];
 
@@ -56,6 +57,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     // Pre-fill player name from stored user
     this.playerName = this.userService.getUserName();
+
+    // Check if we arrived here from a poker challenge
+    const challengeData = this.lobbyService.challengeLobbyData;
+    if (challengeData) {
+      this.lobbyService.challengeLobbyData = null;
+      this.roomCode = challengeData.roomCode;
+      this.roomPlayers = challengeData.players;
+      this.maxPlayers = challengeData.maxPlayers;
+      this.isHost = challengeData.players.length > 0 && challengeData.players[0].id === this.socketService.getSocketId();
+    }
 
     this.subscriptions.push(
       this.lobbyService.onRoomCreated().subscribe(({ roomCode, maxPlayers }) => {
@@ -127,12 +138,20 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return ['poker', 'poker-holdem', 'blackjack', 'farkle', 'yahtzee', 'go-fish'].includes(this.gameType);
   }
 
+  get isPokerGame(): boolean {
+    return this.gameType === 'poker' || this.gameType === 'poker-holdem';
+  }
+
+  get maxAiBots(): number {
+    return Math.max(0, this.maxPlayers - this.roomPlayers.length);
+  }
+
   get canStart(): boolean {
-    return this.isHost && this.roomPlayers.length >= 2;
+    return this.isHost && (this.roomPlayers.length + this.aiCount) >= 2;
   }
 
   startGame(): void {
-    this.lobbyService.startGame(this.roomCode);
+    this.lobbyService.startGame(this.roomCode, this.aiCount);
   }
 
   goBack(): void {

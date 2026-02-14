@@ -79,6 +79,14 @@
               <mat-icon>blur_circular</mat-icon>
               <span>Mancala</span>
             </button>
+            <button mat-menu-item (click)="challenge(user, 'poker')">
+              <mat-icon>style</mat-icon>
+              <span>Poker</span>
+            </button>
+            <button mat-menu-item (click)="challenge(user, 'poker-holdem')">
+              <mat-icon>style</mat-icon>
+              <span>Texas Hold'em</span>
+            </button>
           </mat-menu>
         }
       </div>

@@ -139,7 +139,6 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
       this.gameStateService.onMoveMade().subscribe(({ gameState, move, result }) => {
         this.myId = this.socketService.getSocketId();
         this.gameState = gameState;
-
         // Play sound effects based on action
         if (result?.action === 'deal' || result?.action === 'discard') {
           this.audio.playGame('poker', 'deal');

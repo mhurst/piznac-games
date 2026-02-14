@@ -1098,6 +1098,11 @@ export class PokerScene extends Phaser.Scene {
     this.clearDynamic();
     this.clearActiveGlow();
 
+    // Clear persistent text/graphics so they don't bleed through overlays
+    if (this.messageText) this.messageText.setText('');
+    if (this.messageBg) this.messageBg.clear();
+    if (this.potText) this.potText.setText('');
+
     // Update top banner
     this.updateBanner(state);
 
@@ -1149,16 +1154,29 @@ export class PokerScene extends Phaser.Scene {
       this.clearBuyIn();
     }
 
-    // Draw players
+    // Draw players — rotate seats so "me" is always at the bottom (position 0)
     const activePlayers = state.players.filter(p => !p.isEliminated);
     const positions = this.getPlayerPositions(activePlayers.length);
-    let activePlayerIdx = 0;
 
+    // Find my active-player index (among non-eliminated)
+    let myActiveIdx = 0;
+    let aidx = 0;
+    for (let i = 0; i < state.players.length; i++) {
+      if (state.players[i].isEliminated) continue;
+      if (i === state.myIndex) { myActiveIdx = aidx; break; }
+      aidx++;
+    }
+
+    // Rotate positions so myActiveIdx maps to seat 0 (bottom center)
+    const count = positions.length;
+    const rotated = positions.map((_, i) => positions[(i - myActiveIdx + count) % count]);
+
+    let activePlayerIdx = 0;
     for (let i = 0; i < state.players.length; i++) {
       const player = state.players[i];
       if (player.isEliminated) continue;
 
-      const pos = positions[activePlayerIdx];
+      const pos = rotated[activePlayerIdx];
       const isMe = i === state.myIndex;
       this.drawPlayer(player, pos, state, isMe);
       activePlayerIdx++;

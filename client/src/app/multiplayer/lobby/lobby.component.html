@@ -47,12 +47,27 @@
     @if (roomCode && !gameStarted) {
       <div class="waiting-room">
         @if (roomPlayers.length > 0) {
-          <h2>Players in Room ({{ roomPlayers.length }}/{{ maxPlayers }})</h2>
+          <h2>Players in Room ({{ roomPlayers.length + aiCount }}/{{ maxPlayers }})</h2>
           <div class="player-list">
             @for (player of roomPlayers; track player.id) {
               <div class="player-entry">{{ player.name }}</div>
             }
+            @if (aiCount > 0) {
+              <div class="player-entry ai-entry">+ {{ aiCount }} AI bot{{ aiCount > 1 ? 's' : '' }}</div>
+            }
           </div>
+          @if (isPokerGame && isHost) {
+            <div class="ai-selector">
+              <label>AI Opponents:</label>
+              <select [(ngModel)]="aiCount">
+                @for (n of [0, 1, 2, 3, 4]; track n) {
+                  @if (n <= maxAiBots) {
+                    <option [ngValue]="n">{{ n === 0 ? 'None' : n + ' Bot' + (n > 1 ? 's' : '') }}</option>
+                  }
+                }
+              </select>
+            </div>
+          }
           @if (canStart) {
             <button (click)="startGame()" class="btn btn-create" style="margin-top: 16px;">
               Start Game
