@@ -56,8 +56,8 @@ export class SpBlackjackComponent implements AfterViewInit, OnDestroy {
     this.scene = new BlackjackScene();
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
-      width: 900,
-      height: 680,
+      width: 990,
+      height: 748,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#0b0b15',
       scene: this.scene

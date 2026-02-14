@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { getAvatarConfig, AI_NAMES } from '../../core/ai/ai-names';
 
 export interface BlackjackCard {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -45,8 +46,15 @@ export class BlackjackScene extends Phaser.Scene {
   private readonly CARD_W = 80;
   private readonly CARD_H = 112;
   private readonly CARD_OVERLAP = 25;
-  private readonly CANVAS_W = 900;
-  private readonly CANVAS_H = 680;
+  private readonly OPP_CARD_W = 62;
+  private readonly OPP_CARD_H = 87;
+  private readonly OPP_CARD_OVERLAP = 20;
+  private readonly CANVAS_W = 990;
+  private readonly CANVAS_H = 748;
+
+  // Avatars
+  private readonly AVATAR_R = 26;
+  private readonly MY_AVATAR_R = 18;
 
   // Casino colors
   private readonly FELT_GREEN = 0x1a6b37;
@@ -107,9 +115,16 @@ export class BlackjackScene extends Phaser.Scene {
         this.load.image(key, basePath + `card${suit}${value}.png`);
       }
     }
+
+    // Avatar images (one per AI name)
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
   }
 
   create(): void {
+    this.removeWhiteBackground();
     this.drawTable();
     this.createMessage();
     this.createActionButtons();
@@ -125,52 +140,59 @@ export class BlackjackScene extends Phaser.Scene {
     if (this.onReady) this.onReady();
   }
 
-  // --- Casino Table ---
+  /** Strip white/near-white background from avatar images. */
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
+  }
+
+  // --- Casino Table (full oval like poker) ---
 
   private drawTable(): void {
     const gfx = this.add.graphics().setDepth(0);
     const cx = this.CANVAS_W / 2;
 
-    // Table rim (brown wood border) — semi-ellipse
+    // Full ellipse table
     gfx.fillStyle(this.RIM_BROWN);
-    gfx.fillEllipse(cx, 340, 860, 560);
-    // Flat bottom cut — cover the lower half of the ellipse past the player area
-    gfx.fillStyle(this.DARK_BG);
-    gfx.fillRect(0, 540, this.CANVAS_W, 140);
+    gfx.fillEllipse(cx, 341, 935, 528);
 
-    // Felt interior — slightly smaller ellipse
     gfx.fillStyle(this.FELT_GREEN);
-    gfx.fillEllipse(cx, 340, 830, 530);
-    // Same flat bottom cut for felt
-    gfx.fillStyle(this.DARK_BG);
-    gfx.fillRect(0, 530, this.CANVAS_W, 150);
+    gfx.fillEllipse(cx, 341, 902, 495);
 
-    // Felt bottom edge — straight line with slight padding
-    gfx.fillStyle(this.FELT_GREEN);
-    gfx.fillRect(45, 490, 810, 40);
-
-    // Rim bottom edge
-    gfx.fillStyle(this.RIM_BROWN);
-    gfx.fillRect(35, 525, 830, 10);
-
-    // Gold accent line — separates dealer zone from player zone
-    gfx.lineStyle(2, this.GOLD, 0.6);
-    gfx.beginPath();
-    gfx.arc(cx, 340, 200, Math.PI * 1.15, Math.PI * 1.85, false);
-    gfx.strokePath();
+    // Gold accent oval
+    gfx.lineStyle(2, this.GOLD, 0.4);
+    gfx.strokeEllipse(cx, 341, 660, 330);
 
     // Decorative text on felt
-    this.add.text(cx, 230, 'BLACKJACK PAYS 3 TO 2', {
+    this.add.text(cx, 310, 'BLACKJACK PAYS 3 TO 2', {
       fontSize: '13px', color: '#2a8f4f', fontFamily: 'Georgia', fontStyle: 'italic'
     }).setOrigin(0.5).setDepth(1).setAlpha(0.7);
 
-    this.add.text(cx, 250, 'INSURANCE PAYS 2 TO 1', {
+    this.add.text(cx, 330, 'INSURANCE PAYS 2 TO 1', {
       fontSize: '11px', color: '#2a8f4f', fontFamily: 'Georgia', fontStyle: 'italic'
-    }).setOrigin(0.5).setDepth(1).setAlpha(0.5);
-
-    // Dealer area label
-    this.add.text(cx, 72, 'DEALER', {
-      fontSize: '12px', color: '#d4a847', fontFamily: 'Georgia', letterSpacing: 6
     }).setOrigin(0.5).setDepth(1).setAlpha(0.5);
   }
 
@@ -179,7 +201,7 @@ export class BlackjackScene extends Phaser.Scene {
   private createMessage(): void {
     const cx = this.CANVAS_W / 2;
     this.messageBg = this.add.graphics().setDepth(19);
-    this.messageText = this.add.text(cx, 280, '', {
+    this.messageText = this.add.text(cx, 360, '', {
       fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(20);
   }
@@ -190,17 +212,17 @@ export class BlackjackScene extends Phaser.Scene {
     const cx = this.CANVAS_W / 2;
     const w = Math.max(text.length * 10 + 40, 200);
     this.messageBg.fillStyle(0x000000, 0.5);
-    this.messageBg.fillRoundedRect(cx - w / 2, 262, w, 36, 8);
+    this.messageBg.fillRoundedRect(cx - w / 2, 343, w, 33, 8);
     this.messageBg.fillStyle(color, 0.85);
-    this.messageBg.fillRoundedRect(cx - w / 2, 262, w, 36, 8);
+    this.messageBg.fillRoundedRect(cx - w / 2, 343, w, 33, 8);
     this.messageBg.lineStyle(1, this.GOLD, 0.5);
-    this.messageBg.strokeRoundedRect(cx - w / 2, 262, w, 36, 8);
+    this.messageBg.strokeRoundedRect(cx - w / 2, 343, w, 33, 8);
   }
 
   // --- Action Buttons ---
 
   private createActionButtons(): void {
-    const y = 580;
+    const y = 660;
     const btnW = 130;
     const btnH = 40;
     const gap = 16;
@@ -223,7 +245,7 @@ export class BlackjackScene extends Phaser.Scene {
   // --- Betting UI ---
 
   private createBettingUI(): void {
-    const y = 620;
+    const y = 704;
     const chipAmounts = [10, 25, 50, 100];
     const chipRadius = 24;
     const gap = 14;
@@ -262,7 +284,7 @@ export class BlackjackScene extends Phaser.Scene {
   // --- Info Texts ---
 
   private createInfoTexts(): void {
-    this.chipsText = this.add.text(30, 650, 'Chips: 1,000', {
+    this.chipsText = this.add.text(30, 730, 'Chips: 1,000', {
       fontSize: '15px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'bold'
     }).setDepth(25);
   }
@@ -319,16 +341,12 @@ export class BlackjackScene extends Phaser.Scene {
 
   private drawCircularChip(gfx: Phaser.GameObjects.Graphics, x: number, y: number, radius: number, fillColor: number, edgeColor: number): void {
     gfx.clear();
-    // Outer ring
     gfx.fillStyle(edgeColor);
     gfx.fillCircle(x, y, radius);
-    // Inner fill
     gfx.fillStyle(fillColor);
     gfx.fillCircle(x, y, radius - 3);
-    // Inner decoration ring
     gfx.lineStyle(1, edgeColor, 0.6);
     gfx.strokeCircle(x, y, radius - 7);
-    // Cross dashes on edge
     const dashLen = 4;
     for (let angle = 0; angle < 360; angle += 45) {
       const rad = (angle * Math.PI) / 180;
@@ -374,35 +392,28 @@ export class BlackjackScene extends Phaser.Scene {
     return obj;
   }
 
-  // --- Player Arc Positions ---
+  // --- Player Positions (around oval) ---
 
-  private getPlayerPositions(count: number): { x: number; y: number }[] {
-    if (count === 1) return [{ x: 450, y: 410 }];
-    if (count === 2) return [{ x: 280, y: 420 }, { x: 620, y: 420 }];
-    if (count === 3) return [{ x: 180, y: 430 }, { x: 450, y: 410 }, { x: 720, y: 430 }];
-    return [{ x: 130, y: 435 }, { x: 320, y: 418 }, { x: 580, y: 418 }, { x: 770, y: 435 }];
-  }
+  private getPlayerPositions(count: number): { x: number; y: number; betX: number; betY: number }[] {
+    // Positions arranged around bottom half of oval (top is dealer area)
+    // x,y = center of nameplate; betX,betY = chip position toward table center
+    const allSeats = [
+      { x: 495, y: 598, betX: 495, betY: 470 },   // seat 0: bottom center (ME)
+      { x: 155, y: 440, betX: 280, betY: 385 },   // seat 1: lower-left
+      { x: 130, y: 250, betX: 260, betY: 280 },   // seat 2: upper-left
+      { x: 860, y: 250, betX: 730, betY: 280 },   // seat 3: upper-right
+    ];
 
-  // --- Betting Circle ---
-
-  private drawBettingCircle(gfx: Phaser.GameObjects.Graphics, x: number, y: number, isActive: boolean, isBetting: boolean): void {
-    const radius = 30;
-    // Base circle
-    gfx.lineStyle(2, this.GOLD, 0.6);
-    gfx.strokeCircle(x, y + 75, radius);
-
-    // Pulsing glow during betting phase
-    if (isBetting && isActive) {
-      gfx.lineStyle(3, this.GOLD, 0.3 + Math.sin(Date.now() / 300) * 0.2);
-      gfx.strokeCircle(x, y + 75, radius + 4);
-    }
+    if (count === 1) return [allSeats[0]];
+    if (count === 2) return [allSeats[0], allSeats[2]];
+    if (count === 3) return [allSeats[0], allSeats[1], allSeats[3]];
+    return allSeats;
   }
 
   // --- Chip Stack Visual ---
 
   private drawChipStack(x: number, y: number, bet: number): void {
     if (bet <= 0) return;
-    const centerY = y + 75;
     const chipColors: { threshold: number; fill: number; edge: number }[] = [
       { threshold: 100, fill: 0x111111, edge: 0xd4a847 },
       { threshold: 50, fill: 0x1a6b37, edge: 0x4caf50 },
@@ -419,49 +430,44 @@ export class BlackjackScene extends Phaser.Scene {
       }
     }
 
-    // Draw stacked chips (max 8 visible, bottom to top)
-    const visible = chips.slice(0, 8);
-    const chipR = 14;
-    const stackGap = 4;
-    const startY = centerY + (visible.length - 1) * stackGap / 2;
+    const visible = chips.slice(0, 6);
+    const chipR = 11;
+    const stackGap = 3;
 
     for (let i = 0; i < visible.length; i++) {
-      const cy = startY - i * stackGap;
+      const cy = y - i * stackGap;
       const chip = visible[i];
       const g = this.trackDynamic(this.add.graphics().setDepth(6));
-      // Shadow
-      g.fillStyle(0x000000, 0.3);
-      g.fillEllipse(x + 1, cy + 2, chipR * 2, chipR);
-      // Edge
       g.fillStyle(chip.edge);
       g.fillEllipse(x, cy, chipR * 2, chipR);
-      // Face
       g.fillStyle(chip.fill);
       g.fillEllipse(x, cy - 1, (chipR - 2) * 2, chipR - 2);
-      // Deco line
-      g.lineStyle(1, chip.edge, 0.5);
-      g.strokeEllipse(x, cy - 1, (chipR - 5) * 2, chipR - 5);
     }
 
-    // Bet amount label below stack
     this.trackDynamic(
-      this.add.text(x, centerY + visible.length * stackGap / 2 + 14, `$${bet}`, {
+      this.add.text(x, y + visible.length * stackGap / 2 + 11, `$${bet}`, {
         fontSize: '11px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'bold'
       }).setOrigin(0.5).setDepth(7)
     );
   }
 
-  // --- Active Player Glow ---
+  // --- Active Player Glow (poker-style rounded rect) ---
 
-  private drawActiveGlow(x: number, y: number): void {
+  private drawActiveGlow(cx: number, plateY: number, plateW: number, plateH: number, avatarCY: number, avatarR: number): void {
     this.glowGraphics.clear();
 
-    // Start or continue the pulsing tween
+    const glowTop = avatarCY - avatarR - 6;
+    const glowBottom = plateY + plateH / 2 + 6;
+    const glowW = Math.max(plateW + 12, avatarR * 2 + 16);
+    const glowH = glowBottom - glowTop;
+    const glowX = cx - glowW / 2;
+    const glowY = glowTop;
+
     if (!this.glowTween || !this.glowTween.isPlaying()) {
-      this.glowAlpha = 0.2;
+      this.glowAlpha = 0.15;
       this.glowTween = this.tweens.add({
         targets: this,
-        glowAlpha: { from: 0.15, to: 0.45 },
+        glowAlpha: { from: 0.1, to: 0.35 },
         duration: 800,
         yoyo: true,
         repeat: -1,
@@ -470,7 +476,7 @@ export class BlackjackScene extends Phaser.Scene {
           if (this.glowGraphics && this.glowGraphics.active) {
             this.glowGraphics.clear();
             this.glowGraphics.fillStyle(this.GOLD, this.glowAlpha);
-            this.glowGraphics.fillEllipse(x, y - 10, 180, 130);
+            this.glowGraphics.fillRoundedRect(glowX, glowY, glowW, glowH, 14);
           }
         }
       });
@@ -493,14 +499,18 @@ export class BlackjackScene extends Phaser.Scene {
     this.clearDynamic();
     this.clearActiveGlow();
 
-    // Draw dealer hand
-    this.drawDealerHand(state);
+    // Draw dealer
+    this.drawDealer(state);
 
-    // Draw player hand(s) in arc positions
+    // Draw player hand(s) — rotate positions so myIndex is at seat 0 (bottom)
     const positions = this.getPlayerPositions(state.players.length);
+    const count = positions.length;
+    const rotated = positions.map((_, i) => positions[(i - state.myIndex + count) % count]);
+
     for (let i = 0; i < state.players.length; i++) {
-      const pos = positions[i];
-      this.drawPlayerHand(state.players[i], pos.x, pos.y, state);
+      const pos = rotated[i];
+      const isMe = i === state.myIndex;
+      this.drawPlayerSeat(state.players[i], pos, state, isMe);
     }
 
     // Update message
@@ -564,123 +574,230 @@ export class BlackjackScene extends Phaser.Scene {
     btn.text.setAlpha(enabled ? 1 : 0.4);
   }
 
-  // --- Draw Dealer Hand ---
+  // --- Draw Dealer (poker-style nameplate + avatar at top) ---
 
-  private drawDealerHand(state: BlackjackVisualState): void {
+  private drawDealer(state: BlackjackVisualState): void {
     const dealer = state.dealer;
-    if (dealer.cards.length === 0) return;
-
     const cx = this.CANVAS_W / 2;
+    const plateY = 110; // center of nameplate
+    const plateH = 34;
+    const avatarR = this.AVATAR_R;
+    const overlap = 2;
+    const plateTop = plateY - plateH / 2;
+    const avatarCY = plateTop - avatarR + overlap;
 
-    // Dealer label
+    // --- Nameplate background ---
     const labelText = dealer.revealHole && dealer.total > 0
       ? `DEALER  [${dealer.total}]`
       : 'DEALER';
-    this.trackDynamic(
-      this.add.text(cx, 95, labelText, {
-        fontSize: '15px', color: '#d4a847', fontFamily: 'Georgia', fontStyle: 'bold'
-      }).setOrigin(0.5).setDepth(10)
+
+    const nameText = this.trackDynamic(
+      this.add.text(cx, plateY - 4, labelText, {
+        fontSize: '12px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11)
     );
 
-    // Draw cards
-    const totalW = this.CARD_W + (dealer.cards.length - 1) * this.CARD_OVERLAP;
-    const startX = cx - totalW / 2 + this.CARD_W / 2;
+    const plateW = Math.max(nameText.width + 28, 100);
 
-    for (let i = 0; i < dealer.cards.length; i++) {
-      const card = dealer.cards[i];
-      const key = this.getCardKey(card);
-      const x = startX + i * this.CARD_OVERLAP;
-      this.trackDynamic(
-        this.add.sprite(x, 160, key)
-          .setDisplaySize(this.CARD_W, this.CARD_H)
-          .setDepth(5 + i)
-      );
-    }
+    const plateBg = this.trackDynamic(this.add.graphics().setDepth(9));
+    plateBg.fillStyle(0x0c0f1c, 0.88);
+    plateBg.fillRoundedRect(cx - plateW / 2, plateTop, plateW, plateH, 10);
+    plateBg.lineStyle(1, this.GOLD, 0.35);
+    plateBg.strokeRoundedRect(cx - plateW / 2, plateTop, plateW, plateH, 10);
 
-    // Busted/blackjack indicator
-    if (dealer.busted) {
-      this.trackDynamic(
-        this.add.text(cx, 228, 'BUST!', {
-          fontSize: '14px', color: '#e94560', fontFamily: 'Arial', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(10)
-      );
-    } else if (dealer.blackjack) {
-      this.trackDynamic(
-        this.add.text(cx, 228, 'BLACKJACK!', {
-          fontSize: '14px', color: '#ffd700', fontFamily: 'Arial', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(10)
-      );
+    // --- Dealer avatar (dark circle with "D") ---
+    const avatarGfx = this.trackDynamic(this.add.graphics().setDepth(10));
+    avatarGfx.fillStyle(0x1a1a2e, 1);
+    avatarGfx.fillCircle(cx, avatarCY, avatarR);
+    avatarGfx.lineStyle(3, this.GOLD, 1);
+    avatarGfx.strokeCircle(cx, avatarCY, avatarR + 1);
+    this.trackDynamic(
+      this.add.text(cx, avatarCY, 'D', {
+        fontSize: '18px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11)
+    );
+
+    // --- Dealer cards below nameplate ---
+    if (dealer.cards.length > 0) {
+      const cardsCY = plateY + plateH / 2 + 4 + this.OPP_CARD_H / 2;
+      const totalW = this.OPP_CARD_W + (dealer.cards.length - 1) * this.OPP_CARD_OVERLAP;
+      const startX = cx - totalW / 2 + this.OPP_CARD_W / 2;
+
+      for (let i = 0; i < dealer.cards.length; i++) {
+        const card = dealer.cards[i];
+        const key = this.getCardKey(card);
+        const x = startX + i * this.OPP_CARD_OVERLAP;
+        this.trackDynamic(
+          this.add.sprite(x, cardsCY, key)
+            .setDisplaySize(this.OPP_CARD_W, this.OPP_CARD_H)
+            .setDepth(5 + i)
+        );
+      }
+
+      // Busted/blackjack indicator below dealer cards
+      const indicatorY = cardsCY + this.OPP_CARD_H / 2 + 12;
+      if (dealer.busted) {
+        this.trackDynamic(
+          this.add.text(cx, indicatorY, 'BUST!', {
+            fontSize: '13px', color: '#e94560', fontFamily: 'Arial', fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(10)
+        );
+      } else if (dealer.blackjack) {
+        this.trackDynamic(
+          this.add.text(cx, indicatorY, 'BLACKJACK!', {
+            fontSize: '13px', color: '#ffd700', fontFamily: 'Arial', fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(10)
+        );
+      }
     }
   }
 
-  // --- Draw Player Hand ---
+  // --- Draw Player Seat (poker-style avatar + nameplate) ---
 
-  private drawPlayerHand(player: BlackjackPlayerHand, cx: number, cy: number, state: BlackjackVisualState): void {
-    if (player.cards.length === 0 && state.phase === 'betting') {
-      // Still draw betting circle during betting
-      const bettingGfx = this.trackDynamic(this.add.graphics().setDepth(3));
-      this.drawBettingCircle(bettingGfx, cx, cy, true, state.isBetting);
+  private drawPlayerSeat(
+    player: BlackjackPlayerHand,
+    pos: { x: number; y: number; betX: number; betY: number },
+    state: BlackjackVisualState,
+    isMe: boolean
+  ): void {
+    const cx = pos.x;
+    const cy = pos.y; // center of nameplate
 
-      // Draw chip stack for current bet if this is our player
-      if (state.isBetting && player === state.players[state.myIndex]) {
-        this.drawChipStack(cx, cy, state.currentBet);
-      }
+    const cardW = isMe ? this.CARD_W : this.OPP_CARD_W;
+    const cardH = isMe ? this.CARD_H : this.OPP_CARD_H;
+    const cardOverlap = isMe ? this.CARD_OVERLAP : this.OPP_CARD_OVERLAP;
+    const avatarR = isMe ? this.MY_AVATAR_R : this.AVATAR_R;
+    const plateH = isMe ? 28 : 34;
+    const overlap = 2;
 
-      // Player name during betting
-      this.trackDynamic(
-        this.add.text(cx, cy - 20, player.name, {
-          fontSize: '13px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(10)
-      );
+    // Key Y positions
+    const plateTop = cy - plateH / 2;
+    const plateBottom = cy + plateH / 2;
+    const avatarCY = plateTop - avatarR + overlap;
+    const cardsCY = isMe
+      ? avatarCY - avatarR - 4 - cardH / 2   // cards above avatar for "me"
+      : plateBottom + 4 + cardH / 2;           // cards below plate for opponents
 
-      // Chips count
-      this.trackDynamic(
-        this.add.text(cx, cy + 115, `$${player.chips.toLocaleString()}`, {
-          fontSize: '11px', color: '#aaaaaa', fontFamily: 'Arial'
-        }).setOrigin(0.5).setDepth(10)
-      );
-      return;
-    }
+    // --- Nameplate background ---
+    const nameStr = isMe ? 'YOU' : player.name;
+    const totalStr = player.cards.length > 0 ? ` [${player.total}]` : '';
+    const nameColor = player.isActive ? '#ffd700' : '#d4a847';
+
+    const nameText = this.trackDynamic(
+      this.add.text(cx, cy - 4, `${nameStr}${totalStr}`, {
+        fontSize: '12px', color: nameColor, fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11)
+    );
+
+    const chipsLabel = this.trackDynamic(
+      this.add.text(cx, cy + 9, `$${player.chips.toLocaleString()}`, {
+        fontSize: '11px', color: '#8a8a8a', fontFamily: 'Arial'
+      }).setOrigin(0.5).setDepth(11)
+    );
+
+    const plateW = Math.max(nameText.width + 28, isMe ? 80 : 90);
+
+    const plateBg = this.trackDynamic(this.add.graphics().setDepth(9));
+    const borderColor = player.isActive ? 0xffd700 : this.GOLD;
+    const borderAlpha = player.isActive ? 0.8 : 0.35;
+    plateBg.fillStyle(0x0c0f1c, 0.88);
+    plateBg.fillRoundedRect(cx - plateW / 2, plateTop, plateW, plateH, 10);
+    plateBg.lineStyle(1, borderColor, borderAlpha);
+    plateBg.strokeRoundedRect(cx - plateW / 2, plateTop, plateW, plateH, 10);
 
     // Active player glow
     if (player.isActive && state.phase === 'playerTurn') {
-      this.drawActiveGlow(cx, cy);
+      this.drawActiveGlow(cx, cy, plateW, plateH, avatarCY, avatarR);
     }
 
-    // Player label with total
-    const totalStr = player.cards.length > 0 ? ` [${player.total}]` : '';
-    const labelColor = player.isActive ? '#ffd700' : '#d4a847';
-    this.trackDynamic(
-      this.add.text(cx, cy - 75, `${player.name}${totalStr}`, {
-        fontSize: '13px', color: labelColor, fontFamily: 'Arial', fontStyle: 'bold'
-      }).setOrigin(0.5).setDepth(10)
-    );
+    // --- Avatar ---
+    const avatarBorderColor = player.isActive ? 0xffd700 : this.GOLD;
 
-    // Draw cards
+    if (!isMe) {
+      const imageKey = `avatar_${player.name}`;
+      const hasSprite = this.textures.exists(imageKey);
+
+      const avatarGfx = this.trackDynamic(this.add.graphics().setDepth(10));
+      avatarGfx.fillStyle(0x1a1a2e, 1);
+      avatarGfx.fillCircle(cx, avatarCY, avatarR);
+      avatarGfx.lineStyle(3, avatarBorderColor, 1);
+      avatarGfx.strokeCircle(cx, avatarCY, avatarR + 1);
+
+      if (hasSprite) {
+        const avatarImg = this.trackDynamic(
+          this.add.image(cx, avatarCY, imageKey)
+            .setDisplaySize(avatarR * 2, avatarR * 2)
+            .setDepth(10)
+        );
+
+        // Circular mask
+        const maskGfx = this.make.graphics({});
+        maskGfx.fillStyle(0xffffff);
+        maskGfx.fillCircle(cx, avatarCY, avatarR - 1);
+        avatarImg.setMask(maskGfx.createGeometryMask());
+        this.trackDynamic(maskGfx as unknown as Phaser.GameObjects.GameObject);
+      } else {
+        const avatar = getAvatarConfig(player.name);
+        avatarGfx.fillStyle(avatar.color, 1);
+        avatarGfx.fillCircle(cx, avatarCY, avatarR - 2);
+        this.trackDynamic(
+          this.add.text(cx, avatarCY, avatar.initial, {
+            fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+          }).setOrigin(0.5).setDepth(11)
+        );
+      }
+
+      if (player.isActive) {
+        const glowGfx = this.trackDynamic(this.add.graphics().setDepth(9));
+        glowGfx.fillStyle(0xffd700, 0.15);
+        glowGfx.fillCircle(cx, avatarCY, avatarR + 7);
+      }
+    } else {
+      // "Me" avatar — small green circle with "Y"
+      const avatarGfx = this.trackDynamic(this.add.graphics().setDepth(10));
+      avatarGfx.fillStyle(0x2e7d32, 1);
+      avatarGfx.fillCircle(cx, avatarCY, avatarR);
+      avatarGfx.lineStyle(3, 0xffd700, 1);
+      avatarGfx.strokeCircle(cx, avatarCY, avatarR + 1);
+      this.trackDynamic(
+        this.add.text(cx, avatarCY, 'Y', {
+          fontSize: '13px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(11)
+      );
+    }
+
+    // --- Cards ---
     if (player.cards.length > 0) {
-      const totalW = this.CARD_W + (player.cards.length - 1) * this.CARD_OVERLAP;
-      const startX = cx - totalW / 2 + this.CARD_W / 2;
+      const totalW = cardW + (player.cards.length - 1) * cardOverlap;
+      const startX = cx - totalW / 2 + cardW / 2;
 
       for (let i = 0; i < player.cards.length; i++) {
         const card = player.cards[i];
         const key = this.getCardKey(card);
-        const x = startX + i * this.CARD_OVERLAP;
+        const x = startX + i * cardOverlap;
         this.trackDynamic(
-          this.add.sprite(x, cy, key)
-            .setDisplaySize(this.CARD_W, this.CARD_H)
+          this.add.sprite(x, cardsCY, key)
+            .setDisplaySize(cardW, cardH)
             .setDepth(5 + i)
         );
       }
     }
 
-    // Betting circle (always visible behind cards)
-    const bettingGfx = this.trackDynamic(this.add.graphics().setDepth(3));
-    this.drawBettingCircle(bettingGfx, cx, cy, player.isActive, state.isBetting);
+    // --- Bet display at betX, betY (toward table center) ---
+    if (player.cards.length === 0 && state.phase === 'betting') {
+      // During betting, show current bet for our player
+      if (isMe && state.currentBet > 0) {
+        this.drawChipStack(pos.betX, pos.betY, state.currentBet);
+      }
+    } else {
+      this.drawChipStack(pos.betX, pos.betY, player.bet);
+    }
 
-    // Chip stack for bet
-    this.drawChipStack(cx, cy, player.bet);
+    // --- Status text ---
+    const statusY = isMe
+      ? cardsCY - cardH / 2 - 14
+      : cardsCY + cardH / 2 + 12;
 
-    // Status below cards
     let statusText = '';
     let statusColor = '#ffffff';
     if (player.busted) {
@@ -705,18 +822,11 @@ export class BlackjackScene extends Phaser.Scene {
 
     if (statusText) {
       this.trackDynamic(
-        this.add.text(cx, cy + this.CARD_H / 2 + 16, statusText, {
+        this.add.text(cx, statusY, statusText, {
           fontSize: '13px', color: statusColor, fontFamily: 'Arial', fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(10)
       );
     }
-
-    // Chips count below everything
-    this.trackDynamic(
-      this.add.text(cx, cy + 115, `$${player.chips.toLocaleString()}`, {
-        fontSize: '11px', color: '#aaaaaa', fontFamily: 'Arial'
-      }).setOrigin(0.5).setDepth(10)
-    );
   }
 
   // --- Deal Animation ---
@@ -733,7 +843,7 @@ export class BlackjackScene extends Phaser.Scene {
 
         if (dealInfo.target === 'dealer') {
           targetX = this.CANVAS_W / 2;
-          targetY = 160;
+          targetY = 175;
         } else {
           const pos = this.getPlayerPositions(1)[0];
           targetX = pos.x;
@@ -786,19 +896,19 @@ export class BlackjackScene extends Phaser.Scene {
 
     const panel = this.add.graphics();
     panel.fillStyle(0x16213e);
-    panel.fillRoundedRect(cx - 180, cy - 60, 360, 120, 12);
+    panel.fillRoundedRect(cx - 198, cy - 66, 396, 132, 12);
     panel.lineStyle(2, this.GOLD);
-    panel.strokeRoundedRect(cx - 180, cy - 60, 360, 120, 12);
+    panel.strokeRoundedRect(cx - 198, cy - 66, 396, 132, 12);
     panel.setDepth(91);
     this.gameOverElements.push(panel);
 
     const text = this.add.text(cx, cy - 15, message, {
-      fontSize: '24px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      fontSize: '26px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(92);
     this.gameOverElements.push(text);
 
     const subText = this.add.text(cx, cy + 20, 'Out of chips!', {
-      fontSize: '16px', color: '#aaaaaa', fontFamily: 'Arial'
+      fontSize: '17px', color: '#aaaaaa', fontFamily: 'Arial'
     }).setOrigin(0.5).setDepth(92);
     this.gameOverElements.push(subText);
   }
