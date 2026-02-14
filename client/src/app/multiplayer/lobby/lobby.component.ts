@@ -6,8 +6,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { LobbyService } from '../../core/lobby.service';
+import { LobbyService, Player } from '../../core/lobby.service';
 import { UserService } from '../../core/user.service';
+import { SocketService } from '../../core/socket.service';
 import { PlayersSidebarComponent } from '../../shared/players-sidebar/players-sidebar.component';
 import { Subscription } from 'rxjs';
 
@@ -35,13 +36,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
   gameStarted = false;
   error = '';
 
+  // Multi-player lobby (poker, blackjack, farkle, yahtzee, go-fish)
+  roomPlayers: Player[] = [];
+  maxPlayers = 2;
+  isHost = false;
+
   private subscriptions: Subscription[] = [];
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private lobbyService: LobbyService,
-    private userService: UserService
+    private userService: UserService,
+    private socketService: SocketService
   ) {}
 
   ngOnInit(): void {
@@ -51,8 +58,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.playerName = this.userService.getUserName();
 
     this.subscriptions.push(
-      this.lobbyService.onRoomCreated().subscribe(({ roomCode }) => {
+      this.lobbyService.onRoomCreated().subscribe(({ roomCode, maxPlayers }) => {
         this.roomCode = roomCode;
+        this.isHost = true;
+        if (maxPlayers) this.maxPlayers = maxPlayers;
+        // Host is the first player
+        this.roomPlayers = [{ id: this.socketService.getSocketId(), name: this.playerName.trim() }];
       })
     );
 
@@ -64,12 +75,24 @@ export class LobbyComponent implements OnInit, OnDestroy {
     );
 
     this.subscriptions.push(
+      this.lobbyService.onPlayerJoined().subscribe(({ players, maxPlayers }) => {
+        this.roomPlayers = players;
+        this.maxPlayers = maxPlayers;
+        this.joining = false;
+        // If we joined via code and don't have roomCode yet, grab it
+        if (!this.roomCode && this.joinCode) {
+          this.roomCode = this.joinCode;
+        }
+        // Host is the first player in the list
+        this.isHost = players.length > 0 && players[0].id === this.socketService.getSocketId();
+      })
+    );
+
+    this.subscriptions.push(
       this.lobbyService.onGameStart().subscribe((data) => {
-        console.log('LOBBY: game-start received!', data);
         this.gameStarted = true;
         this.lobbyService.lastGameStartData = data;
         const code = this.roomCode || this.joinCode;
-        console.log('LOBBY: navigating to', '/multiplayer/game', this.gameType, code);
         this.router.navigate(['/multiplayer/game', this.gameType, code]);
       })
     );
@@ -98,6 +121,18 @@ export class LobbyComponent implements OnInit, OnDestroy {
       'go-fish': 'Go Fish'
     };
     return names[this.gameType] || this.gameType;
+  }
+
+  get isMultiPlayerGame(): boolean {
+    return ['poker', 'poker-holdem', 'blackjack', 'farkle', 'yahtzee', 'go-fish'].includes(this.gameType);
+  }
+
+  get canStart(): boolean {
+    return this.isHost && this.roomPlayers.length >= 2;
+  }
+
+  startGame(): void {
+    this.lobbyService.startGame(this.roomCode);
   }
 
   goBack(): void {

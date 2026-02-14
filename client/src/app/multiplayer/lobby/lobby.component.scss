@@ -143,6 +143,29 @@
   border: 2px solid #0f3460;
 }
 
+.player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.player-entry {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  color: #d4a847;
+  font-weight: bold;
+}
+
+.waiting-text {
+  color: #888;
+  font-style: italic;
+  margin-top: 12px;
+}
+
 .error {
   color: #e94560;
   background: rgba(233, 69, 96, 0.1);

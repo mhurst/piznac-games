@@ -46,7 +46,25 @@
 
     @if (roomCode && !gameStarted) {
       <div class="waiting-room">
-        <h2>Waiting for opponent...</h2>
+        @if (roomPlayers.length > 0) {
+          <h2>Players in Room ({{ roomPlayers.length }}/{{ maxPlayers }})</h2>
+          <div class="player-list">
+            @for (player of roomPlayers; track player.id) {
+              <div class="player-entry">{{ player.name }}</div>
+            }
+          </div>
+          @if (canStart) {
+            <button (click)="startGame()" class="btn btn-create" style="margin-top: 16px;">
+              Start Game
+            </button>
+          } @else if (!isHost) {
+            <p class="waiting-text">Waiting for host to start...</p>
+          } @else {
+            <p class="waiting-text">Need at least 2 players to start</p>
+          }
+        } @else {
+          <h2>Waiting for opponent...</h2>
+        }
         <div class="room-code-display">
           <p>Share this code:</p>
           <div class="code">{{ roomCode }}</div>
@@ -54,7 +72,7 @@
       </div>
     }
 
-    @if (joining) {
+    @if (joining && !roomCode) {
       <div class="waiting-room">
         <h2>Joining room...</h2>
       </div>

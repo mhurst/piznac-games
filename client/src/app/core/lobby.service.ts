@@ -29,8 +29,8 @@ export class LobbyService {
     this.socketService.emit('join-room', { roomCode, playerName });
   }
 
-  onRoomCreated(): Observable<{ roomCode: string }> {
-    return this.socketService.on<{ roomCode: string }>('room-created');
+  onRoomCreated(): Observable<{ roomCode: string; maxPlayers?: number }> {
+    return this.socketService.on<{ roomCode: string; maxPlayers?: number }>('room-created');
   }
 
   onJoinError(): Observable<{ message: string }> {
@@ -39,6 +39,14 @@ export class LobbyService {
 
   onGameStart(): Observable<GameStartData> {
     return this.socketService.on<GameStartData>('game-start');
+  }
+
+  onPlayerJoined(): Observable<{ players: Player[]; maxPlayers: number }> {
+    return this.socketService.on<{ players: Player[]; maxPlayers: number }>('player-joined');
+  }
+
+  startGame(roomCode: string): void {
+    this.socketService.emit('start-game', { roomCode });
   }
 
   onOpponentDisconnected(): Observable<void> {
