@@ -30,11 +30,11 @@ export class FarkleScene extends Phaser.Scene {
   private readonly PLAY_AREA_W = 600;
   private readonly SCATTER_LEFT = 60;
   private readonly SCATTER_RIGHT = 530;
-  private readonly SCATTER_TOP = 100;
-  private readonly SCATTER_BOTTOM = 300;
-  private readonly KEPT_ROW_Y = 350;
-  private readonly ROLL_BTN_Y = 420;
-  private readonly BANK_BTN_Y = 475;
+  private readonly SCATTER_TOP = 130;
+  private readonly SCATTER_BOTTOM = 310;
+  private readonly KEPT_ROW_Y = 380;
+  private readonly ROLL_BTN_Y = 470;
+  private readonly BANK_BTN_Y = 530;
   private readonly SCORE_PANEL_X = 610;
   private readonly SCORE_PANEL_W = 280;
   private readonly CANVAS_W = 900;
@@ -72,6 +72,7 @@ export class FarkleScene extends Phaser.Scene {
 
   // State
   private isRolling = false;
+  private animationGen = 0;
   private currentKeptIndices: number[] = [];
   private prevInBottomRow: Set<number> = new Set();
 
@@ -180,9 +181,9 @@ export class FarkleScene extends Phaser.Scene {
   }
 
   private randomScatterPos(existing: { x: number; y: number }[] = []): { x: number; y: number; angle: number } {
-    const minDist = this.DICE_SIZE + 16;
+    const minDist = this.DICE_SIZE + 20;
     let attempts = 0;
-    while (attempts < 50) {
+    while (attempts < 150) {
       const x = Phaser.Math.Between(this.SCATTER_LEFT, this.SCATTER_RIGHT);
       const y = Phaser.Math.Between(this.SCATTER_TOP, this.SCATTER_BOTTOM);
       const tooClose = existing.some(p => {
@@ -193,11 +194,23 @@ export class FarkleScene extends Phaser.Scene {
       if (!tooClose) return { x, y, angle: Phaser.Math.Between(-20, 20) };
       attempts++;
     }
-    return {
-      x: Phaser.Math.Between(this.SCATTER_LEFT, this.SCATTER_RIGHT),
-      y: Phaser.Math.Between(this.SCATTER_TOP, this.SCATTER_BOTTOM),
-      angle: Phaser.Math.Between(-20, 20)
-    };
+    // Grid fallback — guaranteed no overlap
+    const cols = Math.floor((this.SCATTER_RIGHT - this.SCATTER_LEFT) / minDist);
+    const rows = Math.floor((this.SCATTER_BOTTOM - this.SCATTER_TOP) / minDist);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = this.SCATTER_LEFT + c * minDist + minDist / 2;
+        const y = this.SCATTER_TOP + r * minDist + minDist / 2;
+        const tooClose = existing.some(p => {
+          const dx = p.x - x;
+          const dy = p.y - y;
+          return Math.sqrt(dx * dx + dy * dy) < minDist;
+        });
+        if (!tooClose) return { x, y, angle: Phaser.Math.Between(-20, 20) };
+      }
+    }
+    // Last resort (should never hit with 6 dice in the available area)
+    return { x: this.SCATTER_LEFT + 40, y: this.SCATTER_TOP + 40, angle: 0 };
   }
 
   private generateScatterPositions(indices: number[]): void {
@@ -339,6 +352,23 @@ export class FarkleScene extends Phaser.Scene {
   // --- State Update ---
 
   public updateState(state: FarkleVisualState): void {
+    // Clear any stale rolling flag so buttons respond to clicks
+    this.isRolling = false;
+
+    // If all dice are zero (fresh turn), clear immediately
+    const allZero = state.dice.every(v => v < 1);
+    if (allZero) {
+      this.animationGen++;
+      for (let i = 0; i < 6; i++) {
+        this.tweens.killTweensOf(this.diceSprites[i]);
+        this.diceSprites[i].setVisible(false);
+        this.diceSprites[i].setAlpha(1);
+        this.diceSprites[i].disableInteractive();
+        this.diceHighlights[i].setVisible(false);
+      }
+      this.prevInBottomRow = new Set();
+    }
+
     // Update dice positions and visuals
     const keptSet = new Set(state.keptIndices);
     const selectedSet = new Set(state.selectedIndices);
@@ -355,6 +385,8 @@ export class FarkleScene extends Phaser.Scene {
 
       if (val < 1 || val > 6) {
         sprite.setVisible(false);
+        sprite.setAlpha(1);
+        sprite.disableInteractive();
         highlight.setVisible(false);
         continue;
       }
@@ -428,7 +460,7 @@ export class FarkleScene extends Phaser.Scene {
       this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0xe94560);
       this.rollZone.setInteractive({ useHandCursor: true });
     } else {
-      this.rollText.setText(state.isMyTurn ? 'Select dice first' : '...');
+      this.rollText.setText(state.isMyTurn ? 'Select dice first' : 'Waiting...');
       this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0x555555);
       this.rollZone.disableInteractive();
     }
@@ -440,7 +472,7 @@ export class FarkleScene extends Phaser.Scene {
       this.bankZone.setInteractive({ useHandCursor: true });
     } else {
       this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x555555);
-      this.bankText.setText('Bank Points');
+      this.bankText.setText(state.isMyTurn ? 'Bank Points' : 'Waiting...');
       this.bankZone.disableInteractive();
     }
 
@@ -534,15 +566,17 @@ export class FarkleScene extends Phaser.Scene {
 
   public animateRoll(finalDice: number[], rollingIndices: number[], callback: () => void): void {
     this.isRolling = true;
+    const gen = ++this.animationGen;
 
     // Generate new scatter positions for rolling dice
-    const placed: { x: number; y: number }[] = [];
+    const fixedPositions: { x: number; y: number }[] = [];
     // Collect positions of non-rolling dice
     for (let i = 0; i < 6; i++) {
       if (!rollingIndices.includes(i) && this.diceSprites[i].visible) {
-        placed.push({ x: this.diceSprites[i].x, y: this.diceSprites[i].y });
+        fixedPositions.push({ x: this.diceSprites[i].x, y: this.diceSprites[i].y });
       }
     }
+    const placed = [...fixedPositions];
     for (const i of rollingIndices) {
       this.scatterPositions[i] = this.randomScatterPos(placed);
       placed.push(this.scatterPositions[i]);
@@ -559,12 +593,15 @@ export class FarkleScene extends Phaser.Scene {
     const interval = 45;
 
     const doTick = () => {
+      if (gen !== this.animationGen) return;
       ticks++;
+      const tickPlaced: { x: number; y: number }[] = [...fixedPositions];
       for (const i of rollingIndices) {
         const rv = Phaser.Math.Between(1, 6);
         this.diceSprites[i].setTexture(`fdie${rv}`);
         this.diceSprites[i].setDisplaySize(this.DICE_SIZE, this.DICE_SIZE);
-        const tmp = this.randomScatterPos();
+        const tmp = this.randomScatterPos(tickPlaced);
+        tickPlaced.push(tmp);
         this.diceSprites[i].setPosition(tmp.x, tmp.y);
         this.diceSprites[i].setAngle(tmp.angle);
       }
@@ -583,6 +620,38 @@ export class FarkleScene extends Phaser.Scene {
       }
     };
     doTick();
+  }
+
+  /** Sweep all visible dice off the board (animate down and fade out). */
+  public sweepDice(callback?: () => void): void {
+    this.animationGen++;
+    this.isRolling = false;
+    let anyVisible = false;
+    for (let i = 0; i < 6; i++) {
+      const sprite = this.diceSprites[i];
+      if (sprite.visible) {
+        anyVisible = true;
+        sprite.disableInteractive();
+        this.tweens.killTweensOf(sprite);
+        this.tweens.add({
+          targets: sprite,
+          y: this.KEPT_ROW_Y + 60,
+          alpha: 0,
+          duration: 300,
+          ease: 'Power2',
+          onComplete: () => {
+            sprite.setVisible(false);
+            sprite.setAlpha(1);
+          }
+        });
+      }
+      this.diceHighlights[i].setVisible(false);
+    }
+    this.prevInBottomRow = new Set();
+    const delay = anyVisible ? 350 : 0;
+    this.time.delayedCall(delay, () => {
+      if (callback) callback();
+    });
   }
 
   // --- Special Animations ---
@@ -628,6 +697,12 @@ export class FarkleScene extends Phaser.Scene {
   public showHotDice(callback: () => void): void {
     const cx = this.PLAY_AREA_W / 2;
     const cy = 200;
+    let called = false;
+    const safeCallback = () => {
+      if (called) return;
+      called = true;
+      callback();
+    };
 
     const text = this.add.text(cx, cy, 'HOT DICE!', {
       fontSize: '42px', color: '#ff9800', fontFamily: 'Arial', fontStyle: 'bold'
@@ -636,6 +711,16 @@ export class FarkleScene extends Phaser.Scene {
     const subText = this.add.text(cx, cy + 45, 'All 6 dice scored — roll them all again!', {
       fontSize: '15px', color: '#ffffff', fontFamily: 'Arial'
     }).setOrigin(0.5).setAlpha(0);
+
+    // Safety timeout — if tweens don't complete in 4s, force callback
+    this.time.delayedCall(4000, () => {
+      if (!called) {
+        console.warn('[FARKLE SCENE] showHotDice safety timeout — forcing callback');
+        text.destroy();
+        subText.destroy();
+        safeCallback();
+      }
+    });
 
     this.tweens.add({
       targets: [text, subText],
@@ -650,7 +735,7 @@ export class FarkleScene extends Phaser.Scene {
             onComplete: () => {
               text.destroy();
               subText.destroy();
-              callback();
+              safeCallback();
             }
           });
         });

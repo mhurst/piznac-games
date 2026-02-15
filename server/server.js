@@ -78,6 +78,16 @@ function broadcastToAll(event, data) {
   }
 }
 
+/** Find a room by player socket ID (fallback when roomCode lookup fails). */
+function findRoomByPlayer(socketId) {
+  for (const [code, room] of rooms) {
+    if (room.players.some(p => p.id === socketId)) {
+      return { code, room };
+    }
+  }
+  return null;
+}
+
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -468,10 +478,17 @@ io.on('connection', (socket) => {
 
   // Client requests current game state (after navigation)
   socket.on('request-state', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
+    let room = rooms.get(roomCode);
     if (!room) {
-      socket.emit('state-response', { error: 'Room not found' });
-      return;
+      // Fallback: find room by player ID
+      const found = findRoomByPlayer(socket.id);
+      if (found) {
+        room = found.room;
+        console.log(`request-state: room ${roomCode} not found, but found player in room ${found.code}`);
+      } else {
+        socket.emit('state-response', { error: 'Room not found' });
+        return;
+      }
     }
 
     // For Battleship, pass player ID to get filtered state
@@ -485,14 +502,27 @@ io.on('connection', (socket) => {
 
   // Handle a game move
   socket.on('make-move', ({ roomCode, move }) => {
-    const room = rooms.get(roomCode);
-    if (!room || !room.game) return;
+    let room = rooms.get(roomCode);
+    if (!room || !room.game) {
+      // Fallback: find room by player ID
+      const found = findRoomByPlayer(socket.id);
+      if (found && found.room.game) {
+        room = found.room;
+        roomCode = found.code;
+        console.log(`make-move: room ${roomCode} not found by code, found player in room ${found.code}`);
+      } else {
+        console.log(`[MAKE-MOVE] No room/game for ${roomCode}, socket=${socket.id}`);
+        return;
+      }
+    }
 
     let result;
 
     // Handle Farkle moves (roll/keep/bank)
     if (room.gameType === 'farkle') {
+      console.log(`[FARKLE MOVE] player=${socket.id}, move=${JSON.stringify(move)}, currentPlayer=${room.game.currentPlayerId}, hasRolled=${room.game.hasRolled}`);
       result = room.game.makeMove(socket.id, move);
+      console.log(`[FARKLE RESULT] valid=${result.valid}, message=${result.message || 'ok'}`);
     }
     // Handle Blackjack moves (bet/hit/stand/double/next-round)
     else if (room.gameType === 'blackjack') {
@@ -600,8 +630,12 @@ io.on('connection', (socket) => {
 
   // Handle rematch request
   socket.on('request-rematch', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
-    if (!room) return;
+    let room = rooms.get(roomCode);
+    if (!room) {
+      const found = findRoomByPlayer(socket.id);
+      if (found) { room = found.room; roomCode = found.code; }
+      else return;
+    }
 
     if (!room.rematchRequests) room.rematchRequests = new Set();
     room.rematchRequests.add(socket.id);

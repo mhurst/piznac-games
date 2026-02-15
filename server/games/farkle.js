@@ -76,6 +76,31 @@ function hasScoringDice(values) {
   return false;
 }
 
+/** Return local indices of dice that participate in scoring combos. */
+function findScoringDiceIndices(values) {
+  if (values.length === 0) return [];
+  const counts = getCounts(values);
+
+  // 6-dice specials (straight, three pairs, 4+2)
+  if (values.length === 6) {
+    if (counts[1] === 1 && counts[2] === 1 && counts[3] === 1 &&
+        counts[4] === 1 && counts[5] === 1 && counts[6] === 1) {
+      return [0, 1, 2, 3, 4, 5];
+    }
+    const pairs = counts.filter(c => c === 2).length;
+    if (pairs === 3) return [0, 1, 2, 3, 4, 5];
+    if (counts.some(c => c === 4) && counts.some(c => c === 2)) return [0, 1, 2, 3, 4, 5];
+  }
+
+  const indices = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v === 1 || v === 5) { indices.push(i); continue; }
+    if (counts[v] >= 3) { indices.push(i); continue; }
+  }
+  return indices;
+}
+
 function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
@@ -123,6 +148,8 @@ class Farkle {
       case 'roll': return this.handleRoll(playerId);
       case 'keep': return this.handleKeep(playerId, move.indices);
       case 'bank': return this.handleBank(playerId);
+      case 'keep-and-roll': return this.handleKeepAndRoll(playerId, move.indices);
+      case 'keep-and-bank': return this.handleKeepAndBank(playerId, move.indices);
       default: return { valid: false, message: 'Unknown move type' };
     }
   }
@@ -144,19 +171,40 @@ class Farkle {
     // Check for farkle
     const activeValues = rollingIndices.map(i => this.dice[i]);
     if (!hasScoringDice(activeValues)) {
+      const farkleDice = [...this.dice];
       const lostScore = this.turnScore;
       this.turnScore = 0;
       this.advanceTurn();
       return {
         valid: true,
         farkle: true,
-        dice: [...this.dice],
+        dice: farkleDice,
         rollingIndices,
         lostScore,
         nextPlayer: this.currentPlayerId,
         gameOver: this.gameOver,
         winner: this.winner
       };
+    }
+
+    // Check if ALL active dice score → auto-keep for Hot Dice
+    const allScore = scoreSelection(activeValues);
+    if (allScore > 0) {
+      this.turnScore += allScore;
+      this.keptIndices.push(...rollingIndices);
+      if (this.keptIndices.length === 6) {
+        const hotDice = [...this.dice];
+        this.keptIndices = [];
+        this.hasRolled = false;
+        this.dice = [0, 0, 0, 0, 0, 0];
+        return {
+          valid: true,
+          hotDice: true,
+          dice: hotDice,
+          rollingIndices,
+          turnScore: this.turnScore
+        };
+      }
     }
 
     return {
@@ -187,14 +235,14 @@ class Farkle {
     // Check for hot dice
     if (this.keptIndices.length === 6) {
       this.keptIndices = [];
-      // Don't reset hasRolled — player needs to roll again (or server auto-rolls on next 'roll' move)
       this.hasRolled = false;
+      this.dice = [0, 0, 0, 0, 0, 0];
       return {
         valid: true,
         hotDice: true,
         score,
         turnScore: this.turnScore,
-        keptIndices: this.keptIndices
+        keptIndices: []
       };
     }
 
@@ -206,8 +254,171 @@ class Farkle {
     };
   }
 
+  handleKeepAndRoll(playerId, indices) {
+    if (!this.hasRolled) return { valid: false, message: 'Must roll first' };
+    if (!indices || indices.length === 0) {
+      return this.handleRoll(playerId);
+    }
+
+    // Validate indices
+    for (const idx of indices) {
+      if (idx < 0 || idx >= 6) return { valid: false, message: 'Invalid die index' };
+      if (this.keptIndices.includes(idx)) return { valid: false, message: 'Die already kept' };
+    }
+
+    // Validate selection scores
+    const values = indices.map(i => this.dice[i]);
+    const keepScore = scoreSelection(values);
+    if (keepScore === 0) return { valid: false, message: 'Invalid scoring combination' };
+
+    this.turnScore += keepScore;
+    this.keptIndices.push(...indices);
+
+    // Check for hot dice (all 6 explicitly kept)
+    if (this.keptIndices.length === 6) {
+      this.keptIndices = [];
+      this.hasRolled = false;
+      this.dice = [0, 0, 0, 0, 0, 0];
+      return {
+        valid: true,
+        hotDice: true,
+        score: keepScore,
+        turnScore: this.turnScore,
+        keptIndices: []
+      };
+    }
+
+    // Auto-keep remaining if they ALL score together
+    const remainingIndices = this.getActiveDiceIndices();
+    const remainingValues = remainingIndices.map(i => this.dice[i]);
+    const remainingScore = scoreSelection(remainingValues);
+    if (remainingScore > 0) {
+      this.turnScore += remainingScore;
+      this.keptIndices.push(...remainingIndices);
+      if (this.keptIndices.length === 6) {
+        this.keptIndices = [];
+        this.hasRolled = false;
+        this.dice = [0, 0, 0, 0, 0, 0];
+        return {
+          valid: true,
+          hotDice: true,
+          score: keepScore,
+          turnScore: this.turnScore,
+          keptIndices: []
+        };
+      }
+    }
+
+    // Roll remaining dice
+    const rollingIndices = this.getActiveDiceIndices();
+    if (rollingIndices.length === 0) return { valid: false, message: 'No dice to roll' };
+
+    for (const i of rollingIndices) {
+      this.dice[i] = rollDie();
+    }
+
+    // Check for farkle on new roll
+    const activeValues = rollingIndices.map(i => this.dice[i]);
+    if (!hasScoringDice(activeValues)) {
+      const farkleDice = [...this.dice];
+      const lostScore = this.turnScore;
+      this.turnScore = 0;
+      this.advanceTurn();
+      return {
+        valid: true,
+        farkle: true,
+        dice: farkleDice,
+        rollingIndices,
+        lostScore,
+        score: keepScore,
+        nextPlayer: this.currentPlayerId,
+        gameOver: this.gameOver,
+        winner: this.winner
+      };
+    }
+
+    // Check if ALL rolled dice score → auto-keep for hot dice
+    const allRolledScore = scoreSelection(activeValues);
+    if (allRolledScore > 0) {
+      this.turnScore += allRolledScore;
+      this.keptIndices.push(...rollingIndices);
+      if (this.keptIndices.length === 6) {
+        const hotDice = [...this.dice];
+        this.keptIndices = [];
+        this.hasRolled = false;
+        this.dice = [0, 0, 0, 0, 0, 0];
+        return {
+          valid: true,
+          hotDice: true,
+          dice: hotDice,
+          rollingIndices,
+          score: keepScore,
+          turnScore: this.turnScore,
+          keptIndices: []
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      dice: [...this.dice],
+      rollingIndices,
+      score: keepScore
+    };
+  }
+
+  handleKeepAndBank(playerId, indices) {
+    if (!this.hasRolled) return { valid: false, message: 'Must roll first' };
+
+    if (indices && indices.length > 0) {
+      for (const idx of indices) {
+        if (idx < 0 || idx >= 6) return { valid: false, message: 'Invalid die index' };
+        if (this.keptIndices.includes(idx)) return { valid: false, message: 'Die already kept' };
+      }
+      const values = indices.map(i => this.dice[i]);
+      const score = scoreSelection(values);
+      if (score === 0) return { valid: false, message: 'Invalid scoring combination' };
+      this.turnScore += score;
+      this.keptIndices.push(...indices);
+    }
+
+    // Auto-score any remaining scoring dice the player didn't explicitly select
+    this.autoScoreRemaining();
+
+    if (this.turnScore <= 0) return { valid: false, message: 'No points to bank' };
+
+    this.scores[playerId] += this.turnScore;
+    const bankedScore = this.turnScore;
+
+    if (this.scores[playerId] >= 10000) {
+      this.gameOver = true;
+      this.winner = playerId;
+      return {
+        valid: true,
+        banked: bankedScore,
+        playerScore: this.scores[playerId],
+        gameOver: true,
+        winner: playerId
+      };
+    }
+
+    this.advanceTurn();
+    return {
+      valid: true,
+      banked: bankedScore,
+      playerScore: this.scores[playerId],
+      nextPlayer: this.currentPlayerId,
+      gameOver: false,
+      winner: null
+    };
+  }
+
   handleBank(playerId) {
     if (!this.hasRolled) return { valid: false, message: 'Must roll first' };
+
+    // Auto-score any remaining scoring dice the player didn't explicitly select
+    this.autoScoreRemaining();
+
     if (this.turnScore <= 0) return { valid: false, message: 'No points to bank' };
 
     this.scores[playerId] += this.turnScore;
@@ -236,6 +447,22 @@ class Farkle {
       gameOver: false,
       winner: null
     };
+  }
+
+  /** Auto-score any remaining active scoring dice (called before banking). */
+  autoScoreRemaining() {
+    const activeIndices = this.getActiveDiceIndices();
+    if (activeIndices.length === 0) return;
+    const activeValues = activeIndices.map(i => this.dice[i]);
+    const scoringLocal = findScoringDiceIndices(activeValues);
+    if (scoringLocal.length === 0) return;
+    const scoringGlobal = scoringLocal.map(li => activeIndices[li]);
+    const scoringValues = scoringGlobal.map(i => this.dice[i]);
+    const score = scoreSelection(scoringValues);
+    if (score > 0) {
+      this.turnScore += score;
+      this.keptIndices.push(...scoringGlobal);
+    }
   }
 
   advanceTurn() {

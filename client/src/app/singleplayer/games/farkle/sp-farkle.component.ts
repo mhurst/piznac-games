@@ -274,7 +274,9 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.advanceTurn();
+    this.scene.sweepDice(() => {
+      this.advanceTurn();
+    });
   }
 
   // --- Farkle & Hot Dice ---
@@ -282,10 +284,14 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
   private handleFarkle(): void {
     this.turnScore = 0;
     this.updateScene('FARKLE! No scoring dice — turn lost!');
-    this.audio.playGame('farkle', 'farkle');
-    this.scene.showFarkle(() => {
-      this.advanceTurn();
-    });
+    setTimeout(() => {
+      this.audio.playGame('farkle', 'farkle');
+      this.scene.showFarkle(() => {
+        this.scene.sweepDice(() => {
+          this.advanceTurn();
+        });
+      });
+    }, 400);
   }
 
   private handleHotDice(): void {
@@ -347,8 +353,10 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
         setTimeout(() => {
           this.audio.playGame('farkle', 'farkle');
           this.scene.showFarkle(() => {
-            this.aiPlaying = false;
-            this.advanceTurn();
+            this.scene.sweepDice(() => {
+              this.aiPlaying = false;
+              this.advanceTurn();
+            });
           });
         }, 600);
         return;
@@ -431,10 +439,10 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
           return;
         }
 
-        setTimeout(() => {
+        this.scene.sweepDice(() => {
           this.aiPlaying = false;
           this.advanceTurn();
-        }, 1000);
+        });
       }, 1000);
     } else {
       // Roll again
