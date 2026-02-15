@@ -61,8 +61,8 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
     this.scene = new FarkleScene();
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
-      width: 900,
-      height: 600,
+      width: 1100,
+      height: 748,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -550,6 +550,15 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
     const canBank = isHumanTurn && !this.gameOver && !this.aiPlaying &&
       this.hasRolled && (this.turnScore > 0 || rollScore > 0 || hasActiveScoring);
 
+    // Compute best melds text
+    let bestMeldsText = '';
+    if (isHumanTurn && this.hasRolled && activeValues.length > 0) {
+      const scoringLocalIndices = findScoringDiceIndices(activeValues);
+      if (scoringLocalIndices.length > 0) {
+        bestMeldsText = scoringLocalIndices.map(li => activeValues[li]).join('; ');
+      }
+    }
+
     const state: FarkleVisualState = {
       dice: this.dice,
       keptIndices: this.keptIndices,
@@ -569,7 +578,9 @@ export class SpFarkleComponent implements AfterViewInit, OnDestroy {
       canKeep,
       isMyTurn: isHumanTurn && !this.aiPlaying,
       message,
-      hotDice: false
+      hotDice: false,
+      bestMeldsText,
+      localPlayerIndex: 0
     };
     this.scene.updateState(state);
   }

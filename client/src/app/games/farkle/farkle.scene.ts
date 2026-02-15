@@ -23,31 +23,37 @@ export interface FarkleVisualState {
   isMyTurn: boolean;
   message: string;
   hotDice: boolean;
+  bestMeldsText: string;    // e.g. "1; 1; 5; 5" or "" when not applicable
+  localPlayerIndex: number; // index of the local player (always shown at bottom)
 }
 
 export class FarkleScene extends Phaser.Scene {
   private readonly DICE_SIZE = 60;
-  private readonly PLAY_AREA_W = 600;
-  private readonly SCATTER_LEFT = 60;
-  private readonly SCATTER_RIGHT = 530;
-  private readonly SCATTER_TOP = 130;
-  private readonly SCATTER_BOTTOM = 310;
-  private readonly KEPT_ROW_Y = 380;
-  private readonly ROLL_BTN_Y = 470;
-  private readonly BANK_BTN_Y = 530;
-  private readonly SCORE_PANEL_X = 610;
-  private readonly SCORE_PANEL_W = 280;
-  private readonly CANVAS_W = 900;
-  private readonly CANVAS_H = 600;
+  private readonly CANVAS_W = 1100;
+  private readonly CANVAS_H = 748;
+  private readonly PLAY_AREA_W = 680;
+  private readonly SCATTER_LEFT = 80;
+  private readonly SCATTER_RIGHT = 580;
+  private readonly SCATTER_TOP = 172;
+  private readonly SCATTER_BOTTOM = 392;
+  private readonly KEPT_ROW_Y = 438;
+  private readonly ROLL_BTN_Y = 525;
+  private readonly BANK_BTN_Y = 525;
+  private readonly MELD_TABLE_X = 700;
+  private readonly MELD_TABLE_Y = 130;
+  private readonly RIGHT_PANEL_W = 380;
 
   // Dice sprites
   private diceSprites: Phaser.GameObjects.Sprite[] = [];
   private scatterPositions: { x: number; y: number; angle: number }[] = [];
   private diceHighlights: Phaser.GameObjects.Graphics[] = [];
 
-  // Instruction banner
-  private instructionBg!: Phaser.GameObjects.Graphics;
-  private instructionText!: Phaser.GameObjects.Text;
+  // Instruction/message text
+  private messageText!: Phaser.GameObjects.Text;
+
+  // Best melds banner
+  private meldsBannerBg!: Phaser.GameObjects.Graphics;
+  private meldsBannerText!: Phaser.GameObjects.Text;
 
   // Buttons
   private rollBg!: Phaser.GameObjects.Graphics;
@@ -57,15 +63,14 @@ export class FarkleScene extends Phaser.Scene {
   private bankText!: Phaser.GameObjects.Text;
   private bankZone!: Phaser.GameObjects.Zone;
 
-  // Score panel
-  private playerNameTexts: Phaser.GameObjects.Text[] = [];
-  private playerScoreTexts: Phaser.GameObjects.Text[] = [];
-  private playerBars: Phaser.GameObjects.Graphics[] = [];
-  private turnIndicators: Phaser.GameObjects.Graphics[] = [];
-  private playerAvatars: Phaser.GameObjects.GameObject[] = [];
-  private currentPlayerText!: Phaser.GameObjects.Text;
+  // Turn score display
   private turnScoreText!: Phaser.GameObjects.Text;
-  private rollScoreText!: Phaser.GameObjects.Text;
+
+  // Scoreboard elements (top-right, redrawn each update)
+  private scoreboardElements: Phaser.GameObjects.GameObject[] = [];
+
+  // Player avatar+nameplate elements (redrawn each update)
+  private playerAvatarElements: Phaser.GameObjects.GameObject[] = [];
 
   // Game over
   private gameOverElements: Phaser.GameObjects.GameObject[] = [];
@@ -103,10 +108,12 @@ export class FarkleScene extends Phaser.Scene {
 
   create(): void {
     this.removeWhiteBackground();
-    this.createInstruction();
+    this.createMeldValuesTable();
+    this.createMeldsBanner();
+    this.createMessage();
     this.createDice();
     this.createButtons();
-    this.createScorePanel();
+    this.createTurnScoreDisplay();
     if (this.onReady) this.onReady();
   }
 
@@ -139,23 +146,109 @@ export class FarkleScene extends Phaser.Scene {
     }
   }
 
-  // --- Instruction Banner ---
+  // --- Meld Values Table (static, drawn once) ---
 
-  private createInstruction(): void {
-    const cx = this.PLAY_AREA_W / 2;
-    this.instructionBg = this.add.graphics();
-    this.drawInstructionBg();
-    this.instructionText = this.add.text(cx, 50, 'Roll the dice to begin!', {
-      fontSize: '15px', color: '#333333', fontFamily: 'Arial'
+  private createMeldValuesTable(): void {
+    const x = this.MELD_TABLE_X;
+    const y = this.MELD_TABLE_Y;
+    const w = this.RIGHT_PANEL_W;
+    const rowH = 28;
+
+    const melds = [
+      ['Ones', '100'],
+      ['Fives', '50'],
+      ['Triple ones', '1,000'],
+      ['Triple twos', '200'],
+      ['Triple threes', '300'],
+      ['Triple fours', '400'],
+      ['Triple fives', '500'],
+      ['Triple sixes', '600'],
+      ['Four of a kind', '2\u00D7 triple'],
+      ['Five of a kind', '4\u00D7 triple'],
+      ['Six of a kind', '8\u00D7 triple'],
+      ['Three pairs', '1,500'],
+      ['Straight', '1,500'],
+    ];
+
+    const totalH = 46 + melds.length * rowH + 14;
+
+    // Background panel
+    const bg = this.add.graphics();
+    bg.fillStyle(0x16213e, 0.95);
+    bg.fillRoundedRect(x, y, w, totalH, 8);
+    bg.lineStyle(1, 0x0f3460);
+    bg.strokeRoundedRect(x, y, w, totalH, 8);
+
+    // Title
+    this.add.text(x + w / 2, y + 18, 'Meld Values', {
+      fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5);
+
+    // Header row
+    const headerY = y + 40;
+    this.add.text(x + 18, headerY, 'Meld', {
+      fontSize: '14px', color: '#888888', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0, 0.5);
+    this.add.text(x + w - 18, headerY, 'Value', {
+      fontSize: '14px', color: '#888888', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(1, 0.5);
+
+    // Divider line
+    const divider = this.add.graphics();
+    divider.lineStyle(1, 0x0f3460);
+    divider.lineBetween(x + 12, headerY + 12, x + w - 12, headerY + 12);
+
+    // Meld rows
+    for (let i = 0; i < melds.length; i++) {
+      const rowY = headerY + 24 + i * rowH;
+      const color = i % 2 === 0 ? '#cccccc' : '#aaaaaa';
+      this.add.text(x + 18, rowY, melds[i][0], {
+        fontSize: '15px', color, fontFamily: 'Arial'
+      }).setOrigin(0, 0.5);
+      this.add.text(x + w - 18, rowY, melds[i][1], {
+        fontSize: '15px', color, fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(1, 0.5);
+    }
   }
 
-  private drawInstructionBg(): void {
-    this.instructionBg.clear();
-    this.instructionBg.fillStyle(0xffff88, 0.9);
-    this.instructionBg.fillRoundedRect(30, 28, this.PLAY_AREA_W - 60, 44, 8);
-    this.instructionBg.lineStyle(1, 0xcccc00);
-    this.instructionBg.strokeRoundedRect(30, 28, this.PLAY_AREA_W - 60, 44, 8);
+  // --- Best Melds Banner ---
+
+  private createMeldsBanner(): void {
+    const cx = this.PLAY_AREA_W / 2;
+    this.meldsBannerBg = this.add.graphics();
+    this.meldsBannerText = this.add.text(cx, 120, '', {
+      fontSize: '13px', color: '#333333', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.meldsBannerBg.setVisible(false);
+    this.meldsBannerText.setVisible(false);
+  }
+
+  private drawMeldsBanner(text: string): void {
+    const cx = this.PLAY_AREA_W / 2;
+    const bannerW = 520;
+    this.meldsBannerBg.clear();
+    if (!text) {
+      this.meldsBannerBg.setVisible(false);
+      this.meldsBannerText.setVisible(false);
+      return;
+    }
+    this.meldsBannerBg.setVisible(true);
+    this.meldsBannerText.setVisible(true);
+    this.meldsBannerBg.fillStyle(0xffff88, 0.92);
+    this.meldsBannerBg.fillRoundedRect(cx - bannerW / 2, 104, bannerW, 32, 8);
+    this.meldsBannerBg.lineStyle(1, 0xcccc00);
+    this.meldsBannerBg.strokeRoundedRect(cx - bannerW / 2, 104, bannerW, 32, 8);
+    this.meldsBannerText.setText(`Your highest possible melds are ${text}`);
+    this.meldsBannerText.setPosition(cx, 120);
+  }
+
+  // --- Message Text ---
+
+  private createMessage(): void {
+    const cx = this.PLAY_AREA_W / 2;
+    this.messageText = this.add.text(cx, 482, 'Roll the dice to begin!', {
+      fontSize: '14px', color: '#ffff88', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5);
   }
 
   // --- Dice ---
@@ -168,7 +261,7 @@ export class FarkleScene extends Phaser.Scene {
       highlight.setVisible(false);
       this.diceHighlights.push(highlight);
 
-      const sprite = this.add.sprite(this.PLAY_AREA_W / 2, 200, 'fdie1');
+      const sprite = this.add.sprite(this.PLAY_AREA_W / 2, 280, 'fdie1');
       sprite.setDisplaySize(this.DICE_SIZE, this.DICE_SIZE);
       sprite.setVisible(false);
       sprite.setInteractive({ useHandCursor: true });
@@ -194,7 +287,7 @@ export class FarkleScene extends Phaser.Scene {
       if (!tooClose) return { x, y, angle: Phaser.Math.Between(-20, 20) };
       attempts++;
     }
-    // Grid fallback — guaranteed no overlap
+    // Grid fallback
     const cols = Math.floor((this.SCATTER_RIGHT - this.SCATTER_LEFT) / minDist);
     const rows = Math.floor((this.SCATTER_BOTTOM - this.SCATTER_TOP) / minDist);
     for (let r = 0; r < rows; r++) {
@@ -209,7 +302,6 @@ export class FarkleScene extends Phaser.Scene {
         if (!tooClose) return { x, y, angle: Phaser.Math.Between(-20, 20) };
       }
     }
-    // Last resort (should never hit with 6 dice in the available area)
     return { x: this.SCATTER_LEFT + 40, y: this.SCATTER_TOP + 40, angle: 0 };
   }
 
@@ -222,131 +314,260 @@ export class FarkleScene extends Phaser.Scene {
   }
 
   private getKeptSlotX(slotIndex: number, totalKept: number): number {
+    const cx = this.PLAY_AREA_W / 2;
     const gap = this.DICE_SIZE + 14;
     const totalWidth = totalKept * gap - 14;
-    const startX = this.PLAY_AREA_W / 2 - totalWidth / 2 + this.DICE_SIZE / 2;
+    const startX = cx - totalWidth / 2 + this.DICE_SIZE / 2;
     return startX + slotIndex * gap;
   }
 
-  // --- Buttons ---
+  // --- Buttons (side by side) ---
 
   private createButtons(): void {
     const cx = this.PLAY_AREA_W / 2;
+    const rollX = cx - 110;
+    const bankX = cx + 110;
+    const btnW = 200;
+    const btnH = 44;
 
     // Roll button
     this.rollBg = this.add.graphics();
-    this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0xe94560);
-    this.rollText = this.add.text(cx, this.ROLL_BTN_Y, 'Roll Dice', {
+    this.drawButtonAt(this.rollBg, rollX, this.ROLL_BTN_Y, btnW, btnH, 0x4caf50);
+    this.rollText = this.add.text(rollX, this.ROLL_BTN_Y, 'Roll Dice', {
       fontSize: '20px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5);
-    this.rollZone = this.add.zone(cx, this.ROLL_BTN_Y, 220, 44);
+    this.rollZone = this.add.zone(rollX, this.ROLL_BTN_Y, btnW, btnH);
     this.rollZone.setInteractive({ useHandCursor: true });
     this.rollZone.on('pointerdown', () => {
       if (!this.isRolling && this.onRollClick) this.onRollClick();
     });
-    this.rollZone.on('pointerover', () => this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0xff6b8a));
-    this.rollZone.on('pointerout', () => this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0xe94560));
+    this.rollZone.on('pointerover', () => this.drawButtonAt(this.rollBg, rollX, this.ROLL_BTN_Y, btnW, btnH, 0x66bb6a));
+    this.rollZone.on('pointerout', () => this.drawButtonAt(this.rollBg, rollX, this.ROLL_BTN_Y, btnW, btnH, 0x4caf50));
 
     // Bank button
     this.bankBg = this.add.graphics();
-    this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x4a90d9);
-    this.bankText = this.add.text(cx, this.BANK_BTN_Y, 'Bank Points', {
+    this.drawButtonAt(this.bankBg, bankX, this.BANK_BTN_Y, btnW, btnH, 0x4a90d9);
+    this.bankText = this.add.text(bankX, this.BANK_BTN_Y, 'Bank Points', {
       fontSize: '20px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5);
-    this.bankZone = this.add.zone(cx, this.BANK_BTN_Y, 220, 44);
+    this.bankZone = this.add.zone(bankX, this.BANK_BTN_Y, btnW, btnH);
     this.bankZone.setInteractive({ useHandCursor: true });
     this.bankZone.on('pointerdown', () => {
       if (!this.isRolling && this.onBankClick) this.onBankClick();
     });
-    this.bankZone.on('pointerover', () => this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x6aace6));
-    this.bankZone.on('pointerout', () => this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x4a90d9));
+    this.bankZone.on('pointerover', () => this.drawButtonAt(this.bankBg, bankX, this.BANK_BTN_Y, btnW, btnH, 0x6aace6));
+    this.bankZone.on('pointerout', () => this.drawButtonAt(this.bankBg, bankX, this.BANK_BTN_Y, btnW, btnH, 0x4a90d9));
   }
 
-  private drawButton(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, color: number): void {
+  private drawButtonAt(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, w: number, h: number, color: number): void {
     gfx.clear();
     gfx.fillStyle(color);
-    gfx.fillRoundedRect(cx - 110, cy - 22, 220, 44, 8);
+    gfx.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 8);
   }
 
-  // --- Score Panel ---
+  // --- Turn Score Display ---
 
-  private createScorePanel(): void {
-    const x = this.SCORE_PANEL_X;
-    const w = this.SCORE_PANEL_W;
+  private createTurnScoreDisplay(): void {
+    const cx = this.PLAY_AREA_W / 2;
+    this.turnScoreText = this.add.text(cx, 562, '', {
+      fontSize: '14px', color: '#ffffff', fontFamily: 'Arial'
+    }).setOrigin(0.5);
+  }
 
+  // --- Scoreboard (small table at top-right) ---
+
+  private drawScoreboard(players: FarklePlayer[], currentPlayerIndex: number): void {
+    // Clear previous
+    this.scoreboardElements.forEach(el => el.destroy());
+    this.scoreboardElements = [];
+
+    const x = this.MELD_TABLE_X;
+    const y = 16;
+    const w = this.RIGHT_PANEL_W;
+    const colW = Math.min(85, (w - 20) / Math.max(players.length, 1));
+    const totalW = colW * players.length;
+    const startX = x + (w - totalW) / 2 + colW / 2;
+
+    // Background
     const bg = this.add.graphics();
-    bg.fillStyle(0x16213e);
-    bg.fillRoundedRect(x, 10, w, this.CANVAS_H - 20, 8);
+    bg.fillStyle(0x16213e, 0.95);
+    bg.fillRoundedRect(x, y, w, 90, 8);
     bg.lineStyle(1, 0x0f3460);
-    bg.strokeRoundedRect(x, 10, w, this.CANVAS_H - 20, 8);
+    bg.strokeRoundedRect(x, y, w, 90, 8);
+    this.scoreboardElements.push(bg);
 
     // Title
-    this.add.text(x + w / 2, 36, 'SCORES', {
-      fontSize: '16px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    const title = this.add.text(x + w / 2, y + 16, 'SCORES', {
+      fontSize: '14px', color: '#888888', fontFamily: 'Arial', fontStyle: 'bold'
     }).setOrigin(0.5);
+    this.scoreboardElements.push(title);
 
-    // Goal line
-    this.add.text(x + w - 20, 36, '10,000', {
-      fontSize: '11px', color: '#888888', fontFamily: 'Arial'
-    }).setOrigin(1, 0.5);
+    const colors = ['#4a90d9', '#e94560', '#4caf50', '#ff9800'];
 
-    // Divider
-    const d = this.add.graphics();
-    d.lineStyle(1, 0x0f3460);
-    d.lineBetween(x + 10, 56, x + w - 10, 56);
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      const cx = startX + i * colW;
+      const isCurrent = i === currentPlayerIndex;
 
-    // Player rows (create 4 slots, show/hide as needed)
-    const colors = [0x4a90d9, 0xe94560, 0x4caf50, 0xff9800];
-    const colorStr = ['#4a90d9', '#e94560', '#4caf50', '#ff9800'];
+      // Highlight current player
+      if (isCurrent) {
+        const hlGfx = this.add.graphics();
+        hlGfx.fillStyle(0xffd700, 0.15);
+        hlGfx.fillRoundedRect(cx - colW / 2 + 2, y + 30, colW - 4, 56, 4);
+        this.scoreboardElements.push(hlGfx);
+      }
 
-    for (let i = 0; i < 4; i++) {
-      const rowY = 80 + i * 60;
+      // Name (truncate to fit)
+      const displayName = p.name.length > 9 ? p.name.substring(0, 8) + '.' : p.name;
+      const nameColor = colors[i % colors.length];
+      const nameText = this.add.text(cx, y + 46, displayName, {
+        fontSize: '14px', color: nameColor, fontFamily: 'Arial', fontStyle: isCurrent ? 'bold' : 'normal'
+      }).setOrigin(0.5);
+      this.scoreboardElements.push(nameText);
 
-      const indicator = this.add.graphics();
-      indicator.setVisible(false);
-      this.turnIndicators.push(indicator);
+      // Score
+      const scoreText = this.add.text(cx, y + 68, p.totalScore.toLocaleString(), {
+        fontSize: '16px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      this.scoreboardElements.push(scoreText);
+    }
+  }
 
-      const nameText = this.add.text(x + 55, rowY, '', {
-        fontSize: '14px', color: colorStr[i], fontFamily: 'Arial', fontStyle: 'bold'
-      }).setOrigin(0, 0.5).setVisible(false);
-      this.playerNameTexts.push(nameText);
+  // --- Player Avatar + Nameplate ---
 
-      const scoreText = this.add.text(x + w - 20, rowY, '0', {
-        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
-      }).setOrigin(1, 0.5).setVisible(false);
-      this.playerScoreTexts.push(scoreText);
+  private drawPlayerAvatars(players: FarklePlayer[], currentPlayerIndex: number, localPlayerIndex: number): void {
+    this.playerAvatarElements.forEach(el => el.destroy());
+    this.playerAvatarElements = [];
 
-      // Progress bar
-      const bar = this.add.graphics();
-      bar.setVisible(false);
-      this.playerBars.push(bar);
+    if (players.length === 0) return;
+
+    const meIndex = localPlayerIndex;
+
+    // Opponents are all players except "me"
+    const opponents: { player: FarklePlayer; originalIndex: number }[] = [];
+    for (let i = 0; i < players.length; i++) {
+      if (i !== meIndex) opponents.push({ player: players[i], originalIndex: i });
     }
 
-    // Current turn label
-    const infoY = 330;
-    const infoDivider = this.add.graphics();
-    infoDivider.lineStyle(1, 0x0f3460);
-    infoDivider.lineBetween(x + 10, infoY - 10, x + w - 10, infoY - 10);
+    const cx = this.PLAY_AREA_W / 2;
 
-    this.add.text(x + w / 2, infoY + 10, 'Current Turn', {
-      fontSize: '12px', color: '#888888', fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    // Draw "me" at bottom center
+    this.drawNameplate(
+      players[meIndex], meIndex, currentPlayerIndex,
+      cx, 625, true
+    );
 
-    this.currentPlayerText = this.add.text(x + w / 2, infoY + 34, '', {
-      fontSize: '16px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
-    }).setOrigin(0.5);
+    // Draw opponents across the top
+    if (opponents.length === 1) {
+      this.drawNameplate(opponents[0].player, opponents[0].originalIndex, currentPlayerIndex, cx, 40, false);
+    } else if (opponents.length === 2) {
+      this.drawNameplate(opponents[0].player, opponents[0].originalIndex, currentPlayerIndex, cx - 120, 40, false);
+      this.drawNameplate(opponents[1].player, opponents[1].originalIndex, currentPlayerIndex, cx + 120, 40, false);
+    } else if (opponents.length >= 3) {
+      const spacing = (this.PLAY_AREA_W - 160) / (opponents.length + 1);
+      for (let i = 0; i < opponents.length; i++) {
+        const ox = 80 + spacing * (i + 1);
+        this.drawNameplate(opponents[i].player, opponents[i].originalIndex, currentPlayerIndex, ox, 40, false);
+      }
+    }
+  }
 
-    this.add.text(x + w / 2, infoY + 65, 'Turn Score', {
-      fontSize: '12px', color: '#888888', fontFamily: 'Arial'
-    }).setOrigin(0.5);
+  private drawNameplate(
+    player: FarklePlayer, playerIndex: number, currentPlayerIndex: number,
+    cx: number, cy: number, isMe: boolean
+  ): void {
+    const isActive = playerIndex === currentPlayerIndex;
+    const borderColor = isActive ? 0xffd700 : 0xd4a847;
 
-    this.turnScoreText = this.add.text(x + w / 2, infoY + 88, '0', {
-      fontSize: '28px', color: '#ffff00', fontFamily: 'Arial', fontStyle: 'bold'
-    }).setOrigin(0.5);
+    // Nameplate background
+    const npW = 100;
+    const npH = 32;
+    const npY = cy + 8;
+    const npGfx = this.add.graphics();
+    npGfx.fillStyle(0x0c0f1c, 0.88);
+    npGfx.fillRoundedRect(cx - npW / 2, npY, npW, npH, 8);
+    npGfx.lineStyle(isActive ? 2 : 1, borderColor);
+    npGfx.strokeRoundedRect(cx - npW / 2, npY, npW, npH, 8);
+    this.playerAvatarElements.push(npGfx);
 
-    this.rollScoreText = this.add.text(x + w / 2, infoY + 118, '', {
-      fontSize: '13px', color: '#aaaaaa', fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    // Name text
+    const displayName = player.name.length > 10 ? player.name.substring(0, 9) + '.' : player.name;
+    const nameText = this.add.text(cx, npY + 10, displayName, {
+      fontSize: '12px', color: '#d4a847', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(3);
+    this.playerAvatarElements.push(nameText);
+
+    // Score text
+    const scoreText = this.add.text(cx, npY + 24, player.totalScore.toLocaleString(), {
+      fontSize: '11px', color: '#aaaaaa', fontFamily: 'Arial'
+    }).setOrigin(0.5).setDepth(3);
+    this.playerAvatarElements.push(scoreText);
+
+    // Avatar circle — sit above nameplate with slight overlap (matches poker layout)
+    const avatarR = isMe ? 18 : 26;
+    const avatarY = npY - avatarR + 2;
+
+    if (isMe) {
+      // Green circle with "Y"
+      const gfx = this.add.graphics().setDepth(2);
+      gfx.fillStyle(0x2e7d32);
+      gfx.fillCircle(cx, avatarY, avatarR);
+      gfx.lineStyle(3, borderColor);
+      gfx.strokeCircle(cx, avatarY, avatarR);
+      this.playerAvatarElements.push(gfx);
+      const initial = this.add.text(cx, avatarY, 'Y', {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(3);
+      this.playerAvatarElements.push(initial);
+    } else if (!player.isHuman) {
+      // AI avatar image
+      const imageKey = `avatar_${player.name}`;
+      if (this.textures.exists(imageKey)) {
+        const img = this.add.image(cx, avatarY, imageKey)
+          .setDisplaySize(avatarR * 2, avatarR * 2).setDepth(2);
+        this.playerAvatarElements.push(img);
+
+        // Circular mask
+        const maskShape = this.add.graphics().setDepth(0);
+        maskShape.fillStyle(0xffffff);
+        maskShape.fillCircle(cx, avatarY, avatarR);
+        const mask = maskShape.createGeometryMask();
+        img.setMask(mask);
+        this.playerAvatarElements.push(maskShape);
+
+        // Border circle
+        const borderGfx = this.add.graphics().setDepth(2);
+        borderGfx.lineStyle(3, borderColor);
+        borderGfx.strokeCircle(cx, avatarY, avatarR);
+        this.playerAvatarElements.push(borderGfx);
+      } else {
+        // Fallback colored circle
+        const config = getAvatarConfig(player.name);
+        const gfx = this.add.graphics().setDepth(2);
+        gfx.fillStyle(config.color);
+        gfx.fillCircle(cx, avatarY, avatarR);
+        gfx.lineStyle(3, borderColor);
+        gfx.strokeCircle(cx, avatarY, avatarR);
+        this.playerAvatarElements.push(gfx);
+        const initial = this.add.text(cx, avatarY, config.initial, {
+          fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(3);
+        this.playerAvatarElements.push(initial);
+      }
+    } else {
+      // Human (MP) — colored circle + initial
+      const config = getAvatarConfig(player.name);
+      const gfx = this.add.graphics().setDepth(2);
+      gfx.fillStyle(config.color);
+      gfx.fillCircle(cx, avatarY, avatarR);
+      gfx.lineStyle(3, borderColor);
+      gfx.strokeCircle(cx, avatarY, avatarR);
+      this.playerAvatarElements.push(gfx);
+      const initial = this.add.text(cx, avatarY, player.name.charAt(0).toUpperCase(), {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(3);
+      this.playerAvatarElements.push(initial);
+    }
   }
 
   // --- State Update ---
@@ -395,7 +616,6 @@ export class FarkleScene extends Phaser.Scene {
       highlight.setVisible(false);
 
       if (keptSet.has(i)) {
-        // Permanently kept dice — red, in bottom row, not clickable
         sprite.setTexture(`fdieRed${val}`);
         sprite.setDisplaySize(this.DICE_SIZE, this.DICE_SIZE);
         const targetX = this.getKeptSlotX(bottomSlot, totalBottom);
@@ -406,7 +626,6 @@ export class FarkleScene extends Phaser.Scene {
         sprite.disableInteractive();
         bottomSlot++;
       } else if (selectedSet.has(i)) {
-        // Selected dice — white with border, in bottom row, clickable to un-select
         sprite.setTexture(`fdieSel${val}`);
         sprite.setDisplaySize(this.DICE_SIZE, this.DICE_SIZE);
         const targetX = this.getKeptSlotX(bottomSlot, totalBottom);
@@ -421,13 +640,11 @@ export class FarkleScene extends Phaser.Scene {
         }
         bottomSlot++;
       } else {
-        // Active dice in scatter area
         sprite.setTexture(`fdie${val}`);
         sprite.setDisplaySize(this.DICE_SIZE, this.DICE_SIZE);
         const pos = this.scatterPositions[i];
 
         if (this.prevInBottomRow.has(i)) {
-          // Was in bottom row, now back in scatter — tween back smoothly
           this.tweens.add({
             targets: sprite, x: pos.x, y: pos.y, angle: pos.angle,
             duration: 250, ease: 'Power2'
@@ -448,118 +665,54 @@ export class FarkleScene extends Phaser.Scene {
     // Track which dice are in the bottom row for next update
     this.prevInBottomRow = new Set([...state.keptIndices, ...state.selectedIndices]);
 
-    // Update instruction
-    this.drawInstructionBg();
-    this.instructionText.setText(state.message);
-    this.instructionText.setY(50);
+    // Update message
+    this.messageText.setText(state.message);
+
+    // Update best melds banner
+    this.drawMeldsBanner(state.isMyTurn ? state.bestMeldsText : '');
 
     // Update buttons
     const cx = this.PLAY_AREA_W / 2;
+    const rollX = cx - 110;
+    const bankX = cx + 110;
+    const btnW = 200;
+    const btnH = 44;
+
     if (state.canRoll || state.canKeep) {
       this.rollText.setText('Roll Dice');
-      this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0xe94560);
+      this.drawButtonAt(this.rollBg, rollX, this.ROLL_BTN_Y, btnW, btnH, 0x4caf50);
       this.rollZone.setInteractive({ useHandCursor: true });
     } else {
       this.rollText.setText(state.isMyTurn ? 'Select dice first' : 'Waiting...');
-      this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0x555555);
+      this.drawButtonAt(this.rollBg, rollX, this.ROLL_BTN_Y, btnW, btnH, 0x555555);
       this.rollZone.disableInteractive();
     }
 
     if (state.canBank) {
-      this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x4a90d9);
+      this.drawButtonAt(this.bankBg, bankX, this.BANK_BTN_Y, btnW, btnH, 0x4a90d9);
       const bankTotal = state.turnScore + state.rollScore;
       this.bankText.setText(`Bank ${bankTotal} pts`);
       this.bankZone.setInteractive({ useHandCursor: true });
     } else {
-      this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x555555);
+      this.drawButtonAt(this.bankBg, bankX, this.BANK_BTN_Y, btnW, btnH, 0x555555);
       this.bankText.setText(state.isMyTurn ? 'Bank Points' : 'Waiting...');
       this.bankZone.disableInteractive();
     }
 
-    // Clear old avatars
-    this.playerAvatars.forEach(a => a.destroy());
-    this.playerAvatars = [];
-
-    // Update score panel
-    const colors = [0x4a90d9, 0xe94560, 0x4caf50, 0xff9800];
-    for (let i = 0; i < 4; i++) {
-      if (i < state.players.length) {
-        const p = state.players[i];
-        this.playerNameTexts[i].setText(p.name).setVisible(true);
-        this.playerScoreTexts[i].setText(p.totalScore.toLocaleString()).setVisible(true);
-
-        // Draw avatar next to name
-        const avatarX = this.SCORE_PANEL_X + 35;
-        const avatarY = 80 + i * 60;
-        const r = 14;
-        if (!p.isHuman) {
-          const imageKey = `avatar_${p.name}`;
-          if (this.textures.exists(imageKey)) {
-            const img = this.add.image(avatarX, avatarY, imageKey)
-              .setDisplaySize(r * 2, r * 2).setDepth(1);
-            this.playerAvatars.push(img);
-          } else {
-            const config = getAvatarConfig(p.name);
-            const gfx = this.add.graphics().setDepth(1);
-            gfx.fillStyle(config.color);
-            gfx.fillCircle(avatarX, avatarY, r);
-            gfx.lineStyle(1, 0xd4a847, 0.6);
-            gfx.strokeCircle(avatarX, avatarY, r);
-            this.playerAvatars.push(gfx);
-            const initial = this.add.text(avatarX, avatarY, config.initial, {
-              fontSize: '11px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
-            }).setOrigin(0.5).setDepth(2);
-            this.playerAvatars.push(initial);
-          }
-        }
-
-        // Progress bar
-        const barX = this.SCORE_PANEL_X + 55;
-        const barY = 80 + i * 60 + 14;
-        const barW = this.SCORE_PANEL_W - 75;
-        const progress = Math.min(p.totalScore / 10000, 1);
-
-        this.playerBars[i].clear();
-        this.playerBars[i].setVisible(true);
-        // Background
-        this.playerBars[i].fillStyle(0x0f3460);
-        this.playerBars[i].fillRoundedRect(barX, barY, barW, 8, 4);
-        // Fill
-        if (progress > 0) {
-          this.playerBars[i].fillStyle(colors[i]);
-          this.playerBars[i].fillRoundedRect(barX, barY, Math.max(barW * progress, 8), 8, 4);
-        }
-
-        // Turn indicator (arrow)
-        this.turnIndicators[i].clear();
-        if (i === state.currentPlayerIndex) {
-          this.turnIndicators[i].setVisible(true);
-          this.turnIndicators[i].fillStyle(0xffff00);
-          const arrowX = this.SCORE_PANEL_X + 18;
-          const arrowY = 80 + i * 60;
-          this.turnIndicators[i].fillTriangle(
-            arrowX - 6, arrowY - 6,
-            arrowX + 6, arrowY,
-            arrowX - 6, arrowY + 6
-          );
-        } else {
-          this.turnIndicators[i].setVisible(false);
-        }
-      } else {
-        this.playerNameTexts[i].setVisible(false);
-        this.playerScoreTexts[i].setVisible(false);
-        this.playerBars[i].setVisible(false);
-        this.turnIndicators[i].setVisible(false);
-      }
+    // Turn score display
+    if (state.turnScore > 0 || state.rollScore > 0) {
+      let turnStr = `Turn: ${state.turnScore}`;
+      if (state.rollScore > 0) turnStr += ` (+${state.rollScore} selected)`;
+      this.turnScoreText.setText(turnStr);
+    } else {
+      this.turnScoreText.setText('');
     }
 
-    // Current turn info
-    const cp = state.players[state.currentPlayerIndex];
-    if (cp) {
-      this.currentPlayerText.setText(cp.name);
-    }
-    this.turnScoreText.setText(state.turnScore.toString());
-    this.rollScoreText.setText(state.rollScore > 0 ? `+${state.rollScore} selected` : '');
+    // Draw scoreboard
+    this.drawScoreboard(state.players, state.currentPlayerIndex);
+
+    // Draw player avatars+nameplates
+    this.drawPlayerAvatars(state.players, state.currentPlayerIndex, state.localPlayerIndex);
   }
 
   // --- Roll Animation ---
@@ -570,7 +723,6 @@ export class FarkleScene extends Phaser.Scene {
 
     // Generate new scatter positions for rolling dice
     const fixedPositions: { x: number; y: number }[] = [];
-    // Collect positions of non-rolling dice
     for (let i = 0; i < 6; i++) {
       if (!rollingIndices.includes(i) && this.diceSprites[i].visible) {
         fixedPositions.push({ x: this.diceSprites[i].x, y: this.diceSprites[i].y });
@@ -657,8 +809,8 @@ export class FarkleScene extends Phaser.Scene {
   // --- Special Animations ---
 
   public showFarkle(callback: () => void): void {
-    const cx = this.PLAY_AREA_W / 2;
-    const cy = 200;
+    const cx = 340;
+    const cy = 280;
 
     const overlay = this.add.graphics();
     overlay.fillStyle(0x000000, 0.5);
@@ -695,8 +847,8 @@ export class FarkleScene extends Phaser.Scene {
   }
 
   public showHotDice(callback: () => void): void {
-    const cx = this.PLAY_AREA_W / 2;
-    const cy = 200;
+    const cx = 340;
+    const cy = 280;
     let called = false;
     const safeCallback = () => {
       if (called) return;
@@ -712,7 +864,7 @@ export class FarkleScene extends Phaser.Scene {
       fontSize: '15px', color: '#ffffff', fontFamily: 'Arial'
     }).setOrigin(0.5).setAlpha(0);
 
-    // Safety timeout — if tweens don't complete in 4s, force callback
+    // Safety timeout
     this.time.delayedCall(4000, () => {
       if (!called) {
         console.warn('[FARKLE SCENE] showHotDice safety timeout — forcing callback');
@@ -770,7 +922,6 @@ export class FarkleScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.gameOverElements.push(title);
 
-    // Player scores listing
     const colorStr = ['#4a90d9', '#e94560', '#4caf50', '#ff9800'];
     for (let i = 0; i < players.length; i++) {
       const rowY = py + 70 + i * 36;
@@ -778,7 +929,7 @@ export class FarkleScene extends Phaser.Scene {
       const medal = i === winnerIndex ? ' \u2B50' : '';
       const scoreStr = this.add.text(cw / 2, rowY,
         `${p.name}: ${p.totalScore.toLocaleString()}${medal}`, {
-        fontSize: '18px', color: colorStr[i], fontFamily: 'Arial',
+        fontSize: '18px', color: colorStr[i % colorStr.length], fontFamily: 'Arial',
         fontStyle: i === winnerIndex ? 'bold' : 'normal'
       }).setOrigin(0.5);
       this.gameOverElements.push(scoreStr);
@@ -803,15 +954,19 @@ export class FarkleScene extends Phaser.Scene {
     this.generateScatterPositions([0, 1, 2, 3, 4, 5]);
 
     const cx = this.PLAY_AREA_W / 2;
-    this.drawButton(this.rollBg, cx, this.ROLL_BTN_Y, 0xe94560);
+    const rollX = cx - 110;
+    const bankX = cx + 110;
+    const btnW = 200;
+    const btnH = 44;
+    this.drawButtonAt(this.rollBg, rollX, this.ROLL_BTN_Y, btnW, btnH, 0x4caf50);
     this.rollText.setText('Roll Dice');
     this.rollZone.setInteractive({ useHandCursor: true });
-    this.drawButton(this.bankBg, cx, this.BANK_BTN_Y, 0x555555);
+    this.drawButtonAt(this.bankBg, bankX, this.BANK_BTN_Y, btnW, btnH, 0x555555);
     this.bankText.setText('Bank Points');
     this.bankZone.disableInteractive();
 
-    this.instructionText.setText('Roll the dice to begin!');
-    this.turnScoreText.setText('0');
-    this.rollScoreText.setText('');
+    this.messageText.setText('Roll the dice to begin!');
+    this.turnScoreText.setText('');
+    this.drawMeldsBanner('');
   }
 }

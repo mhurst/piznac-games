@@ -52,8 +52,8 @@ export class FarkleComponent implements AfterViewInit, OnDestroy {
 
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
-      width: 900,
-      height: 600,
+      width: 1100,
+      height: 748,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -197,6 +197,15 @@ export class FarkleComponent implements AfterViewInit, OnDestroy {
       };
     });
 
+    // Compute best melds text
+    let bestMeldsText = '';
+    if (isMyTurn && this.gameState.hasRolled && activeValues.length > 0) {
+      const scoringLocal = findScoringDiceIndices(activeValues);
+      if (scoringLocal.length > 0) {
+        bestMeldsText = scoringLocal.map(li => activeValues[li]).join('; ');
+      }
+    }
+
     const state: FarkleVisualState = {
       dice: this.gameState.dice,
       keptIndices: this.gameState.keptIndices,
@@ -211,7 +220,9 @@ export class FarkleComponent implements AfterViewInit, OnDestroy {
       canKeep,
       isMyTurn,
       message,
-      hotDice: false
+      hotDice: false,
+      bestMeldsText,
+      localPlayerIndex: this.gameState.players.findIndex((p: any) => p.id === this.myId)
     };
     this.scene.updateState(state);
   }
