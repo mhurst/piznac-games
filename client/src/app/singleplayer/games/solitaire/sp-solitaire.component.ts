@@ -424,8 +424,13 @@ export class SpSolitaireComponent implements AfterViewInit, OnDestroy {
   }
 
   private autoComplete(): void {
+    this.scene.lockInput();
+
     const doStep = () => {
-      if (this.gameOver) return;
+      if (this.gameOver) {
+        this.scene.unlockInput();
+        return;
+      }
 
       let moved = false;
 
@@ -465,7 +470,11 @@ export class SpSolitaireComponent implements AfterViewInit, OnDestroy {
         this.checkWin();
         if (!this.gameOver) {
           setTimeout(doStep, 150);
+        } else {
+          this.scene.unlockInput();
         }
+      } else {
+        this.scene.unlockInput();
       }
     };
 

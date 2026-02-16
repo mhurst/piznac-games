@@ -47,8 +47,14 @@ export class SolitaireScene extends Phaser.Scene {
   private pointerDownLocation: CardLocation | null = null;
   private readonly DRAG_THRESHOLD = 6;
 
+  // Snap-back tweens (tracked so we can kill them on re-render)
+  private snapBackTweens: Phaser.Tweens.Tween[] = [];
+
   // Target highlights shown during drag
   private targetHighlights: Phaser.GameObjects.Graphics[] = [];
+
+  // Interaction lock — blocks input during auto-complete
+  private inputLocked = false;
 
   // Double-click detection
   private lastClickTime = 0;
@@ -91,8 +97,19 @@ export class SolitaireScene extends Phaser.Scene {
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => this.onPointerMove(pointer));
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => this.onPointerUp(pointer));
 
+    // Recover from pointer leaving the canvas mid-drag
+    this.input.on('gameout', () => {
+      if (this.isDragging || this.pointerDownLocation) {
+        this.abortDrag();
+      }
+    });
+
     if (this.onReady) this.onReady();
   }
+
+  /** Lock input during auto-complete */
+  public lockInput(): void { this.inputLocked = true; }
+  public unlockInput(): void { this.inputLocked = false; }
 
   // --- Static layout (drawn once) ---
 
@@ -163,7 +180,7 @@ export class SolitaireScene extends Phaser.Scene {
       const sprite = this.trackDynamic(this.add.sprite(x, y, 'cardBack_blue'));
       sprite.setDisplaySize(this.cardWidth, this.cardHeight);
       sprite.setInteractive({ useHandCursor: true });
-      sprite.on('pointerdown', () => { if (this.onDrawClick) this.onDrawClick(); });
+      sprite.on('pointerdown', () => { if (!this.inputLocked && this.onDrawClick) this.onDrawClick(); });
 
       this.trackDynamic(this.add.text(x, y + this.cardHeight / 2 + 10, count.toString(), {
         fontSize: '12px', color: '#888', fontFamily: 'Arial'
@@ -180,7 +197,7 @@ export class SolitaireScene extends Phaser.Scene {
       const hitZone = this.trackDynamic(
         this.add.zone(x, y, this.cardWidth, this.cardHeight).setInteractive({ useHandCursor: true })
       );
-      hitZone.on('pointerdown', () => { if (this.onDrawClick) this.onDrawClick(); });
+      hitZone.on('pointerdown', () => { if (!this.inputLocked && this.onDrawClick) this.onDrawClick(); });
     }
   }
 
@@ -279,6 +296,11 @@ export class SolitaireScene extends Phaser.Scene {
   // --- Drag & Drop ---
 
   private onCardPointerDown(location: CardLocation, pointer: Phaser.Input.Pointer, sprites: Phaser.GameObjects.Sprite[]): void {
+    if (this.inputLocked) return;
+    // If a drag is already in progress, abort it first to avoid orphaned sprites
+    if (this.isDragging || this.pointerDownLocation) {
+      this.abortDrag();
+    }
     this.pointerDownLocation = location;
     this.pointerStartX = pointer.x;
     this.pointerStartY = pointer.y;
@@ -289,6 +311,7 @@ export class SolitaireScene extends Phaser.Scene {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    if (this.inputLocked) return;
     if (!this.pointerDownLocation || !this.dragFrom) return;
 
     const dx = pointer.x - this.pointerStartX;
@@ -314,44 +337,66 @@ export class SolitaireScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (this.inputLocked) return;
     if (!this.pointerDownLocation) return;
     const location = this.pointerDownLocation;
 
-    if (this.isDragging) {
-      // Finished dragging — check drop target
-      const target = this.getDropTarget(pointer.x, pointer.y);
-      this.clearTargetHighlights();
+    try {
+      if (this.isDragging) {
+        // Finished dragging — check drop target
+        const target = this.getDropTarget(pointer.x, pointer.y);
+        this.clearTargetHighlights();
 
-      if (target && this.onCardDrop) {
-        this.onCardDrop(this.dragFrom!, target);
+        if (target && this.onCardDrop) {
+          this.onCardDrop(this.dragFrom!, target);
+        } else {
+          // Invalid drop — animate back smoothly
+          this.restoreDragDepths();
+          for (let i = 0; i < this.dragSprites.length; i++) {
+            const tween = this.tweens.add({
+              targets: this.dragSprites[i],
+              x: this.dragOriginalPositions[i].x,
+              y: this.dragOriginalPositions[i].y,
+              duration: 200,
+              ease: 'Power2'
+            });
+            this.snapBackTweens.push(tween);
+          }
+        }
       } else {
-        // Invalid drop — animate back smoothly
-        this.restoreDragDepths();
-        for (let i = 0; i < this.dragSprites.length; i++) {
-          this.tweens.add({
-            targets: this.dragSprites[i],
-            x: this.dragOriginalPositions[i].x,
-            y: this.dragOriginalPositions[i].y,
-            duration: 200,
-            ease: 'Power2'
-          });
+        // Was a click, not a drag — check for double-click
+        const now = Date.now();
+        if (this.lastClickLocation && this.isSameLocation(this.lastClickLocation, location)
+            && (now - this.lastClickTime) < this.DOUBLE_CLICK_MS) {
+          this.lastClickTime = 0;
+          this.lastClickLocation = null;
+          if (this.onDoubleClick) this.onDoubleClick(location);
+        } else {
+          this.lastClickTime = now;
+          this.lastClickLocation = location;
         }
       }
-    } else {
-      // Was a click, not a drag — check for double-click
-      const now = Date.now();
-      if (this.lastClickLocation && this.isSameLocation(this.lastClickLocation, location)
-          && (now - this.lastClickTime) < this.DOUBLE_CLICK_MS) {
-        this.lastClickTime = 0;
-        this.lastClickLocation = null;
-        if (this.onDoubleClick) this.onDoubleClick(location);
-      } else {
-        this.lastClickTime = now;
-        this.lastClickLocation = location;
+    } finally {
+      // Always reset drag state, even if a callback threw
+      this.pointerDownLocation = null;
+      this.dragFrom = null;
+      this.isDragging = false;
+      this.dragSprites = [];
+      this.dragOriginalPositions = [];
+    }
+  }
+
+  /** Abort an in-progress drag — snap sprites back instantly (used on gameout / stale drag). */
+  private abortDrag(): void {
+    this.clearTargetHighlights();
+    // Restore sprites to original positions immediately
+    for (let i = 0; i < this.dragSprites.length; i++) {
+      if (this.dragSprites[i] && this.dragOriginalPositions[i]) {
+        this.dragSprites[i].x = this.dragOriginalPositions[i].x;
+        this.dragSprites[i].y = this.dragOriginalPositions[i].y;
       }
     }
-
-    // Reset drag state
+    this.restoreDragDepths();
     this.pointerDownLocation = null;
     this.dragFrom = null;
     this.isDragging = false;
@@ -361,6 +406,11 @@ export class SolitaireScene extends Phaser.Scene {
 
   private cancelDrag(): void {
     this.clearTargetHighlights();
+    // Kill any in-flight snap-back tweens so they don't animate destroyed sprites
+    for (const t of this.snapBackTweens) {
+      if (t && t.isPlaying()) t.stop();
+    }
+    this.snapBackTweens = [];
     this.pointerDownLocation = null;
     this.dragFrom = null;
     this.isDragging = false;

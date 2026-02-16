@@ -561,6 +561,10 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   /** 3rd Street: deal 2 face-down + 1 face-up to each player, then betting1. */
   private startStudStreet3(): void {
     this.phase = 'street3';
+
+    // Capture hand sizes before dealing
+    const prevHandSizes = this.players.map(p => p.hand.length);
+
     // 2 face-down cards
     for (let round = 0; round < 2; round++) {
       for (const p of this.activePlayers) {
@@ -584,8 +588,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     }
 
     this.audio.playGame('poker', 'deal');
-    this.updateScene('3rd Street — first betting round');
-    setTimeout(() => this.startStudBettingRound('betting1'), 500);
+    this.animateStudDealAndBet('3rd Street — first betting round', prevHandSizes, 'betting1');
   }
 
   /** Streets 4-7: deal 1 card to each player. 4-6 face-up, 7 configurable. */
@@ -593,6 +596,9 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.currentStreet = streetNum;
     const phaseMap: Record<number, PokerPhase> = { 4: 'street4', 5: 'street5', 6: 'street6', 7: 'street7' };
     this.phase = phaseMap[streetNum];
+
+    // Capture hand sizes before dealing
+    const prevHandSizes = this.players.map(p => p.hand.length);
 
     const faceDown = (streetNum === 7 && this.studLastCardDown);
     const faceUpCards: Card[] = [];
@@ -610,10 +616,23 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
 
     this.audio.playGame('poker', 'deal');
     const suffix = streetNum === 7 ? (faceDown ? ' (face down)' : ' (face up)') : '';
-    this.updateScene(`${this.streetName(streetNum)}${suffix}`);
-
     const bettingMap: Record<number, PokerPhase> = { 4: 'betting2', 5: 'betting3', 6: 'betting4', 7: 'betting5' };
-    setTimeout(() => this.startStudBettingRound(bettingMap[streetNum]), 500);
+    this.animateStudDealAndBet(`${this.streetName(streetNum)}${suffix}`, prevHandSizes, bettingMap[streetNum]);
+  }
+
+  /** Animate dealing cards one-at-a-time, then start a betting round. */
+  private animateStudDealAndBet(message: string, prevHandSizes: number[], bettingPhase: PokerPhase): void {
+    // Build the full visual state (with new cards in hand)
+    this.updateScene(message);
+    const fullState = this.scene.getCurrentState();
+    if (!fullState) {
+      // Fallback: just start betting
+      setTimeout(() => this.startStudBettingRound(bettingPhase), 500);
+      return;
+    }
+    this.scene.animateStudDeal(fullState, prevHandSizes, () => {
+      this.startStudBettingRound(bettingPhase);
+    });
   }
 
   private streetName(n: number): string {

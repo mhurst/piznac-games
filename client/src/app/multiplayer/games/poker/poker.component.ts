@@ -31,6 +31,9 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
   private players: { id: string; name: string }[] = [];
   gameState: any = null;
 
+  // Stud deal animation tracking
+  private prevHandSizes: number[] = [];
+
   gameOver = false;
   rematchRequested = false;
 
@@ -138,7 +141,9 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     this.subscriptions.push(
       this.gameStateService.onMoveMade().subscribe(({ gameState, move, result }) => {
         this.myId = this.socketService.getSocketId();
+        const oldHandSizes = this.prevHandSizes;
         this.gameState = gameState;
+
         // Play sound effects based on action
         if (result?.action === 'deal' || result?.action === 'discard') {
           this.audio.playGame('poker', 'deal');
@@ -148,6 +153,17 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
           this.audio.playGame('poker', 'check');
         } else if (result?.action === 'fold') {
           this.audio.playGame('poker', 'fold');
+        }
+
+        // Detect stud deal: hand sizes grew since last update
+        const isStudGame = gameState.isStud || false;
+        if (isStudGame && oldHandSizes.length > 0) {
+          const newHandSizes = gameState.players.map((p: any) => (p.hand ? p.hand.length : 0));
+          const grew = newHandSizes.some((s: number, i: number) => s > (oldHandSizes[i] || 0));
+          if (grew) {
+            this.updateSceneFromState(oldHandSizes);
+            return;
+          }
         }
 
         this.updateSceneFromState();
@@ -172,6 +188,7 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
       this.lobbyService.onGameStart().subscribe(({ players, gameState }) => {
         this.gameOver = false;
         this.rematchRequested = false;
+        this.prevHandSizes = [];
         this.players = players;
         this.gameState = gameState;
         this.scene.resetGame();
@@ -195,7 +212,7 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     );
   }
 
-  private updateSceneFromState(): void {
+  private updateSceneFromState(animatePrevHandSizes?: number[]): void {
     if (!this.gameState || !this.players.length) return;
 
     const isMyTurn = this.gameState.currentPlayerId === this.myId;
@@ -333,7 +350,16 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
       bigBlindIndex: this.gameState.bigBlindIndex ?? -1
     };
 
-    this.scene.updateState(state);
+    // Track hand sizes for stud deal animation detection
+    this.prevHandSizes = this.gameState.players.map((p: any) => (p.hand ? p.hand.length : 0));
+
+    if (animatePrevHandSizes) {
+      this.scene.animateStudDeal(state, animatePrevHandSizes, () => {
+        // Animation complete — state already rendered by animateStudDeal
+      });
+    } else {
+      this.scene.updateState(state);
+    }
   }
 
   nextHand(): void {

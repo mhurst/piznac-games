@@ -94,6 +94,11 @@ export class PokerScene extends Phaser.Scene {
   // Current visual state
   private currentState: PokerVisualState | null = null;
 
+  // Stud dealing animation tracking
+  private prevHandSizes: number[] = [];
+  private isAnimatingDeal = false;
+  private dealAnimElements: Phaser.GameObjects.GameObject[] = [];
+
   // Callbacks
   public onCheckClick: (() => void) | null = null;
   public onCallClick: (() => void) | null = null;
@@ -1092,6 +1097,10 @@ export class PokerScene extends Phaser.Scene {
 
   // --- State Update ---
 
+  public getCurrentState(): PokerVisualState | null {
+    return this.currentState;
+  }
+
   public updateState(state: PokerVisualState): void {
     this.currentState = state;
     if (!this.sceneReady) return;
@@ -1602,6 +1611,170 @@ export class PokerScene extends Phaser.Scene {
     );
   }
 
+  // --- Stud Dealing Animation ---
+
+  /**
+   * Animate dealing one card at a time to each player.
+   * Renders the "before" state, then animates new cards flying from deck to each seat.
+   * On completion, calls updateState with the full new state.
+   */
+  public animateStudDeal(newState: PokerVisualState, prevHandSizes: number[], callback?: () => void): void {
+    if (this.isAnimatingDeal) {
+      // If already animating, just skip to final state
+      this.updateState(newState);
+      if (callback) callback();
+      return;
+    }
+    this.isAnimatingDeal = true;
+
+    // Render the pre-deal state (same state but with truncated hands)
+    const preState = this.buildPreDealState(newState, prevHandSizes);
+    this.updateState(preState);
+
+    // Compute target positions for new cards
+    const activePlayers = newState.players.filter(p => !p.isEliminated);
+    const positions = this.getPlayerPositions(activePlayers.length);
+
+    // Rotate so "me" is at bottom (same logic as updateState)
+    let myActiveIdx = 0;
+    let aidx = 0;
+    for (let i = 0; i < newState.players.length; i++) {
+      if (newState.players[i].isEliminated) continue;
+      if (i === newState.myIndex) { myActiveIdx = aidx; break; }
+      aidx++;
+    }
+    const count = positions.length;
+    const rotated = positions.map((_, i) => positions[(i - myActiveIdx + count) % count]);
+
+    // Build list of cards to animate (one per player who got a new card)
+    const cardTargets: { x: number; y: number; key: string; cardW: number; cardH: number; delay: number }[] = [];
+    let activeIdx = 0;
+    let dealIndex = 0;
+
+    for (let i = 0; i < newState.players.length; i++) {
+      const player = newState.players[i];
+      if (player.isEliminated) continue;
+
+      const isMe = i === newState.myIndex;
+      const prevSize = prevHandSizes[i] || 0;
+      const newSize = player.hand.length;
+
+      if (newSize > prevSize && !player.folded) {
+        const pos = rotated[activeIdx];
+        const cardW = isMe ? this.MY_CARD_W : this.OPP_CARD_W;
+        const cardH = isMe ? this.MY_CARD_H : this.OPP_CARD_H;
+        const cardSpacing = isMe ? this.MY_CARD_SPACING : this.OPP_CARD_SPACING;
+        const avatarR = isMe ? this.MY_AVATAR_R : this.AVATAR_R;
+        const plateH = isMe ? 28 : 34;
+        const overlap = 2;
+        const plateTop = pos.y - plateH / 2;
+        const plateBottom = pos.y + plateH / 2;
+        const avatarCY = plateTop - avatarR + overlap;
+        const cardsCY = isMe
+          ? avatarCY - avatarR - 4 - cardH / 2
+          : plateBottom + 4 + cardH / 2;
+
+        // For each new card dealt to this player
+        for (let c = prevSize; c < newSize; c++) {
+          const card = player.hand[c];
+          const handSize = c + 1; // hand size when this card lands
+          const totalW = cardW + (handSize - 1) * cardSpacing;
+          const startX = pos.x - totalW / 2 + cardW / 2;
+          const cardX = startX + c * cardSpacing;
+
+          const STUD_OFFSET = 14;
+          const TABLE_CENTER_Y = this.CANVAS_H / 2;
+          const cardY = (newState.isStud && !card.faceDown)
+            ? cardsCY + (pos.y > TABLE_CENTER_Y ? -STUD_OFFSET : STUD_OFFSET)
+            : cardsCY;
+
+          // Determine visual key — for "me", show face even if faceDown
+          const key = (isMe && newState.isStud && card.faceDown)
+            ? this.getCardFaceKey(card)
+            : this.getCardKey(card);
+
+          cardTargets.push({
+            x: cardX, y: cardY, key,
+            cardW, cardH,
+            delay: dealIndex * 300
+          });
+          dealIndex++;
+        }
+      }
+      activeIdx++;
+    }
+
+    if (cardTargets.length === 0) {
+      this.isAnimatingDeal = false;
+      this.updateState(newState);
+      if (callback) callback();
+      return;
+    }
+
+    // Deck position (center of table)
+    const deckX = this.CANVAS_W / 2;
+    const deckY = this.CANVAS_H / 2 - 20;
+
+    // Animate each card
+    let completed = 0;
+    for (const target of cardTargets) {
+      // Start as card back at deck position
+      const sprite = this.add.sprite(deckX, deckY, 'cardBack_blue')
+        .setDisplaySize(target.cardW, target.cardH)
+        .setDepth(50 + completed)
+        .setAlpha(0.9);
+      this.dealAnimElements.push(sprite);
+
+      this.time.delayedCall(target.delay, () => {
+        this.tweens.add({
+          targets: sprite,
+          x: target.x,
+          y: target.y,
+          alpha: 1,
+          duration: 250,
+          ease: 'Power2',
+          onComplete: () => {
+            // Flip to actual card face
+            sprite.setTexture(target.key);
+            sprite.setDisplaySize(target.cardW, target.cardH);
+
+            completed++;
+            if (completed >= cardTargets.length) {
+              // All cards dealt — clean up animation sprites and render final state
+              this.time.delayedCall(200, () => {
+                this.dealAnimElements.forEach(el => el.destroy());
+                this.dealAnimElements = [];
+                this.isAnimatingDeal = false;
+                this.updateState(newState);
+                if (callback) callback();
+              });
+            }
+          }
+        });
+      });
+    }
+  }
+
+  /** Build a copy of state with hands truncated to previous sizes (for pre-deal render). */
+  private buildPreDealState(state: PokerVisualState, prevHandSizes: number[]): PokerVisualState {
+    return {
+      ...state,
+      players: state.players.map((p, i) => ({
+        ...p,
+        hand: p.hand.slice(0, prevHandSizes[i] || 0)
+      })),
+      // Don't show betting UI during deal animation
+      isBetting: false,
+      isDrawPhase: false,
+      canCheck: false,
+      canCall: false,
+      canRaise: false,
+      canFold: false,
+      canAllIn: false,
+      canDiscard: false
+    };
+  }
+
   // --- Game Over ---
 
   public showGameOver(message: string): void {
@@ -1647,6 +1820,10 @@ export class PokerScene extends Phaser.Scene {
     this.myCardSlotXs = [];
     this.lastHandSize = 0;
     this.isDragging = false;
+    this.prevHandSizes = [];
+    this.isAnimatingDeal = false;
+    this.dealAnimElements.forEach(el => el.destroy());
+    this.dealAnimElements = [];
     this.gameOverElements.forEach(el => el.destroy());
     this.gameOverElements = [];
     if (this.messageText) this.messageText.setText('');
