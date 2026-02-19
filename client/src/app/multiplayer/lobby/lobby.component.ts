@@ -9,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { LobbyService, Player } from '../../core/lobby.service';
 import { UserService } from '../../core/user.service';
 import { SocketService } from '../../core/socket.service';
+import { PlayerWalletService } from '../../core/player-wallet.service';
 import { PlayersSidebarComponent } from '../../shared/players-sidebar/players-sidebar.component';
 import { Subscription } from 'rxjs';
 
@@ -49,7 +50,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     private router: Router,
     private lobbyService: LobbyService,
     private userService: UserService,
-    private socketService: SocketService
+    private socketService: SocketService,
+    private wallet: PlayerWalletService
   ) {}
 
   ngOnInit(): void {
@@ -151,7 +153,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   startGame(): void {
-    this.lobbyService.startGame(this.roomCode, this.aiCount);
+    const isChipGame = this.gameType === 'poker' || this.gameType === 'poker-holdem' || this.gameType === 'blackjack';
+    const playerChips = isChipGame
+      ? { [this.socketService.getSocketId()]: this.wallet.getBalance('chips') }
+      : undefined;
+    this.lobbyService.startGame(this.roomCode, this.aiCount, playerChips);
   }
 
   goBack(): void {

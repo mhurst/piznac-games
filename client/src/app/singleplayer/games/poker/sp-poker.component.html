@@ -49,6 +49,11 @@
       <span class="stat">Hands: {{ handsPlayed }}</span>
       <span class="stat">Won: {{ handsWon }}</span>
       @if (gameOver) {
+        @if (canReplenish) {
+          <button mat-raised-button color="accent" (click)="replenishChips()">
+            Replenish Chips
+          </button>
+        }
         <button mat-raised-button color="primary" (click)="newGame()">
           New Game
         </button>
@@ -56,6 +61,11 @@
         <button mat-raised-button color="primary" (click)="nextHand()">
           Next Hand
         </button>
+        @if (canReplenish) {
+          <button mat-raised-button color="accent" (click)="replenishChips()">
+            Replenish Chips
+          </button>
+        }
       }
       <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
     </div>

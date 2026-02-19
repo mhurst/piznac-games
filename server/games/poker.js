@@ -67,9 +67,10 @@ class Poker {
 
     // Per-player state
     this.players = {};
+    const chipOverrides = options.chipOverrides || {};
     for (const id of playerIds) {
       this.players[id] = {
-        chips: STARTING_CHIPS,
+        chips: chipOverrides[id] || STARTING_CHIPS,
         hand: [],
         bet: 0,
         totalBet: 0,

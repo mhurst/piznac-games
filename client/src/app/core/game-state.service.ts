@@ -74,8 +74,8 @@ export class GameStateService {
     this.socketService.emit('make-move', { roomCode, move });
   }
 
-  requestRematch(roomCode: string): void {
-    this.socketService.emit('request-rematch', { roomCode });
+  requestRematch(roomCode: string, playerChips?: number): void {
+    this.socketService.emit('request-rematch', { roomCode, playerChips });
   }
 
   onMoveMade(): Observable<MoveData> {

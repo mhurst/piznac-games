@@ -69,7 +69,7 @@ function isSoft(hand) {
 }
 
 class Blackjack {
-  constructor(playerIds) {
+  constructor(playerIds, options = {}) {
     this.playerIds = [...playerIds];
     this.playerCount = playerIds.length;
 
@@ -77,10 +77,11 @@ class Blackjack {
     this.deck = shuffleDeck(createDeck());
 
     // Per-player state
+    const chipOverrides = options.chipOverrides || {};
     this.players = {};
     for (const id of playerIds) {
       this.players[id] = {
-        chips: 1000,
+        chips: chipOverrides[id] || 1000,
         bet: 0,
         hand: [],
         hasBet: false,

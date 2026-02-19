@@ -9,6 +9,7 @@ import { SocketService } from '../../../core/socket.service';
 import { GameStateService } from '../../../core/game-state.service';
 import { LobbyService } from '../../../core/lobby.service';
 import { AudioService } from '../../../core/audio/audio.service';
+import { PlayerWalletService } from '../../../core/player-wallet.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -43,7 +44,8 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     private socketService: SocketService,
     private gameStateService: GameStateService,
     private lobbyService: LobbyService,
-    private audio: AudioService
+    private audio: AudioService,
+    private wallet: PlayerWalletService
   ) {}
 
   ngAfterViewInit(): void {
@@ -107,6 +109,13 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     return this.gameState.players.find((p: any) => p.id === this.myId);
   }
 
+  private syncWallet(): void {
+    const myPlayer = this.getMyPlayer();
+    if (myPlayer && myPlayer.chips !== undefined) {
+      this.wallet.setBalance('chips', myPlayer.chips);
+    }
+  }
+
   private getMaxDiscards(): number {
     const myPlayer = this.getMyPlayer();
     if (!myPlayer || !myPlayer.hand) return 3;
@@ -144,6 +153,11 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
         const oldHandSizes = this.prevHandSizes;
         this.gameState = gameState;
 
+        // Sync wallet when hand settles
+        if (gameState.phase === 'settlement') {
+          this.syncWallet();
+        }
+
         // Play sound effects based on action
         if (result?.action === 'deal' || result?.action === 'discard') {
           this.audio.playGame('poker', 'deal');
@@ -174,6 +188,7 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     this.subscriptions.push(
       this.gameStateService.onGameOver().subscribe(({ winner }) => {
         this.gameOver = true;
+        this.syncWallet();
         this.updateSceneFromState();
         const winnerPlayer = this.players.find(p => p.id === winner);
         const message = winnerPlayer
@@ -368,16 +383,18 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
 
   requestRematch(): void {
     this.rematchRequested = true;
-    this.gameStateService.requestRematch(this.roomCode);
+    this.gameStateService.requestRematch(this.roomCode, this.wallet.getBalance('chips'));
   }
 
   leaveGame(): void {
+    this.syncWallet();
     this.socketService.disconnect();
     this.socketService.reconnect();
     this.router.navigate(['/']);
   }
 
   ngOnDestroy(): void {
+    this.syncWallet();
     this.subscriptions.forEach(sub => sub.unsubscribe());
     if (this.phaserGame) this.phaserGame.destroy(true);
   }

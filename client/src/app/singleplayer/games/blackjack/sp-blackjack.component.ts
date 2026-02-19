@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import Phaser from 'phaser';
 import { BlackjackScene, BlackjackCard, BlackjackVisualState, BlackjackPlayerHand } from '../../../games/blackjack/blackjack.scene';
 import { AudioService } from '../../../core/audio/audio.service';
+import { PlayerWalletService } from '../../../core/player-wallet.service';
 
 interface Card {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -49,7 +50,8 @@ export class SpBlackjackComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private router: Router,
-    private audio: AudioService
+    private audio: AudioService,
+    private wallet: PlayerWalletService
   ) {}
 
   ngAfterViewInit(): void {
@@ -161,7 +163,7 @@ export class SpBlackjackComponent implements AfterViewInit, OnDestroy {
     this.audio.init();
     this.gameStarted = true;
     this.gameOver = false;
-    this.chips = 1000;
+    this.chips = this.wallet.getBalance('chips');
     this.wins = 0;
     this.losses = 0;
     this.deck = this.shuffleDeck(this.createDeck());
@@ -411,6 +413,7 @@ export class SpBlackjackComponent implements AfterViewInit, OnDestroy {
       this.audio.playGame('blackjack', 'lose');
     }
 
+    this.wallet.setBalance('chips', this.chips);
     this.updateSceneWithResult(message, result, payout);
 
     // Check for game over (0 chips)
@@ -526,16 +529,30 @@ export class SpBlackjackComponent implements AfterViewInit, OnDestroy {
 
   // --- UI Actions ---
 
+  replenishChips(): void {
+    this.wallet.replenish('chips', 1000);
+    this.chips = this.wallet.getBalance('chips');
+    this.gameOver = false;
+    this.scene.resetGame();
+    this.startNewRound();
+  }
+
+  get canReplenish(): boolean {
+    return this.wallet.getBalance('chips') < 1000;
+  }
+
   newGame(): void {
     this.scene.resetGame();
     this.startGame();
   }
 
   leaveGame(): void {
+    this.wallet.setBalance('chips', this.chips);
     this.router.navigate(['/'], { queryParams: { tab: 'sp' } });
   }
 
   ngOnDestroy(): void {
+    this.wallet.setBalance('chips', this.chips);
     if (this.phaserGame) this.phaserGame.destroy(true);
   }
 }

@@ -18,6 +18,7 @@ import { PotManager } from '../../../games/poker/poker-pot-manager';
 import { getAIBettingDecision, getAIDrawDecision, getAIDelay } from '../../../core/ai/poker.ai';
 import { getRandomAINames } from '../../../core/ai/ai-names';
 import { AudioService } from '../../../core/audio/audio.service';
+import { PlayerWalletService } from '../../../core/player-wallet.service';
 
 interface PlayerState {
   id: string;
@@ -99,7 +100,8 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private audio: AudioService
+    private audio: AudioService,
+    private wallet: PlayerWalletService
   ) {}
 
   ngAfterViewInit(): void {
@@ -147,7 +149,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.players.push({
       id: 'human',
       name: 'YOU',
-      chips: STARTING_CHIPS,
+      chips: this.wallet.getBalance('chips'),
       hand: [],
       bet: 0,
       totalBet: 0,
@@ -1255,7 +1257,16 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.updateScene(`${winner.name} wins $${totalPot} — everyone else folded`);
   }
 
+  private syncWallet(): void {
+    const human = this.players.find(p => p.id === 'human');
+    if (human) {
+      this.wallet.setBalance('chips', human.chips);
+    }
+  }
+
   private eliminateBrokePlayers(): void {
+    this.syncWallet();
+
     for (const p of this.activePlayers) {
       if (p.chips <= 0) p.isEliminated = true;
     }
@@ -1437,15 +1448,34 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
   }
 
   newGame(): void {
+    this.syncWallet();
     this.scene.resetGame();
     this.startGame();
   }
 
+  replenishChips(): void {
+    this.wallet.replenish('chips', 1000);
+    const human = this.players.find(p => p.id === 'human');
+    if (human) {
+      human.chips = this.wallet.getBalance('chips');
+      human.isEliminated = false;
+      this.gameOver = false;
+    }
+    this.scene.resetGame();
+    this.updateScene('Chips replenished! Ready to play.');
+  }
+
+  get canReplenish(): boolean {
+    return this.wallet.getBalance('chips') < 1000;
+  }
+
   leaveGame(): void {
+    this.syncWallet();
     this.router.navigate(['/'], { queryParams: { tab: 'sp' } });
   }
 
   ngOnDestroy(): void {
+    this.syncWallet();
     if (this.phaserGame) this.phaserGame.destroy(true);
   }
 }

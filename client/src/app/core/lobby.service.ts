@@ -48,8 +48,8 @@ export class LobbyService {
     return this.socketService.on<{ players: Player[]; maxPlayers: number }>('player-joined');
   }
 
-  startGame(roomCode: string, aiCount: number = 0): void {
-    this.socketService.emit('start-game', { roomCode, aiCount });
+  startGame(roomCode: string, aiCount: number = 0, playerChips?: Record<string, number>): void {
+    this.socketService.emit('start-game', { roomCode, aiCount, playerChips });
   }
 
   onOpponentDisconnected(): Observable<void> {

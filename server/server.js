@@ -413,7 +413,7 @@ io.on('connection', (socket) => {
   });
 
   // Host starts a farkle/blackjack game (when 2+ players have joined)
-  socket.on('start-game', ({ roomCode, aiCount }) => {
+  socket.on('start-game', ({ roomCode, aiCount, playerChips }) => {
     const room = rooms.get(roomCode);
     if (!room) return;
     if (room.gameType !== 'farkle' && room.gameType !== 'blackjack' && room.gameType !== 'yahtzee' && room.gameType !== 'poker' && room.gameType !== 'poker-holdem' && room.gameType !== 'go-fish') return;
@@ -442,17 +442,20 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Build chip overrides from playerChips map (if provided by clients)
+    const chipOverrides = playerChips || {};
+
     const playerIds = room.players.map(p => p.id);
     if (room.gameType === 'farkle') {
       room.game = new Farkle(playerIds);
     } else if (room.gameType === 'blackjack') {
-      room.game = new Blackjack(playerIds);
+      room.game = new Blackjack(playerIds, { chipOverrides });
     } else if (room.gameType === 'yahtzee') {
       room.game = new Yahtzee(playerIds);
     } else if (room.gameType === 'poker') {
-      room.game = new Poker(playerIds, { aiBots: botIds });
+      room.game = new Poker(playerIds, { aiBots: botIds, chipOverrides });
     } else if (room.gameType === 'poker-holdem') {
-      room.game = new Poker(playerIds, { lockedVariant: 'texas-holdem', aiBots: botIds });
+      room.game = new Poker(playerIds, { lockedVariant: 'texas-holdem', aiBots: botIds, chipOverrides });
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(playerIds);
     }
@@ -629,7 +632,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle rematch request
-  socket.on('request-rematch', ({ roomCode }) => {
+  socket.on('request-rematch', ({ roomCode, playerChips }) => {
     let room = rooms.get(roomCode);
     if (!room) {
       const found = findRoomByPlayer(socket.id);
@@ -638,7 +641,11 @@ io.on('connection', (socket) => {
     }
 
     if (!room.rematchRequests) room.rematchRequests = new Set();
+    if (!room.rematchChips) room.rematchChips = {};
     room.rematchRequests.add(socket.id);
+    if (playerChips && typeof playerChips === 'number') {
+      room.rematchChips[socket.id] = playerChips;
+    }
 
     // Notify the other player
     socket.to(roomCode).emit('rematch-requested', { playerId: socket.id });
@@ -651,7 +658,9 @@ io.on('connection', (socket) => {
 
     // If all (human) players want rematch, restart
     if (room.rematchRequests.size >= rematchThreshold) {
+      const rematchChipOverrides = room.rematchChips || {};
       room.rematchRequests.clear();
+      room.rematchChips = {};
 
       if (room.gameType === 'tic-tac-toe') {
         room.game = new TicTacToe(room.players[0].id, room.players[1].id);
@@ -668,13 +677,13 @@ io.on('connection', (socket) => {
       } else if (room.gameType === 'farkle') {
         room.game = new Farkle(room.players.map(p => p.id));
       } else if (room.gameType === 'blackjack') {
-        room.game = new Blackjack(room.players.map(p => p.id));
+        room.game = new Blackjack(room.players.map(p => p.id), { chipOverrides: rematchChipOverrides });
       } else if (room.gameType === 'yahtzee') {
         room.game = new Yahtzee(room.players.map(p => p.id));
       } else if (room.gameType === 'poker') {
-        room.game = new Poker(room.players.map(p => p.id), { aiBots: botIds });
+        room.game = new Poker(room.players.map(p => p.id), { aiBots: botIds, chipOverrides: rematchChipOverrides });
       } else if (room.gameType === 'poker-holdem') {
-        room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem', aiBots: botIds });
+        room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem', aiBots: botIds, chipOverrides: rematchChipOverrides });
       } else if (room.gameType === 'go-fish') {
         room.game = new GoFish(room.players.map(p => p.id));
       }
