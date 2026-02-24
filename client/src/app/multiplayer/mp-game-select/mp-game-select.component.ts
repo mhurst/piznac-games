@@ -92,6 +92,12 @@ export class MpGameSelectComponent {
       name: 'Go Fish',
       description: '2-4 players, collect books of four!',
       icon: 'style'
+    },
+    {
+      id: 'chess',
+      name: 'Chess',
+      description: 'Classic strategy game for 2 players',
+      icon: 'castle'
     }
   ];
 

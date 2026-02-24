@@ -118,6 +118,13 @@ export class SpGameSelectComponent {
       description: 'Collect books of four! Ask opponents for cards.',
       icon: 'style',
       comingSoon: false
+    },
+    {
+      id: 'chess',
+      name: 'Chess',
+      description: 'Classic strategy game vs AI!',
+      icon: 'castle',
+      comingSoon: false
     }
   ];
 

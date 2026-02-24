@@ -54,6 +54,9 @@ export interface MoveData {
     cardsGiven?: number;
     anotherTurn?: boolean;
     newBook?: string;
+    // Chess-specific
+    special?: string;
+    inCheck?: boolean;
   };
 }
 

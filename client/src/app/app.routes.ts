@@ -27,6 +27,8 @@ import { SpPokerComponent } from './singleplayer/games/poker/sp-poker.component'
 import { PokerMpComponent } from './multiplayer/games/poker/poker.component';
 import { SpGoFishComponent } from './singleplayer/games/go-fish/sp-go-fish.component';
 import { GoFishMpComponent } from './multiplayer/games/go-fish/go-fish.component';
+import { SpChessComponent } from './singleplayer/games/chess/sp-chess.component';
+import { ChessMpComponent } from './multiplayer/games/chess/chess.component';
 
 export const routes: Routes = [
   // Home with tabs
@@ -47,6 +49,7 @@ export const routes: Routes = [
   { path: 'multiplayer/game/poker/:roomId', component: PokerMpComponent },
   { path: 'multiplayer/game/poker-holdem/:roomId', component: PokerMpComponent },
   { path: 'multiplayer/game/go-fish/:roomId', component: GoFishMpComponent },
+  { path: 'multiplayer/game/chess/:roomId', component: ChessMpComponent },
 
   // Single player routes
   { path: 'singleplayer', component: SpGameSelectComponent },
@@ -64,6 +67,7 @@ export const routes: Routes = [
   { path: 'singleplayer/game/poker', component: SpPokerComponent },
   { path: 'singleplayer/game/poker-holdem', component: SpPokerComponent },
   { path: 'singleplayer/game/go-fish', component: SpGoFishComponent },
+  { path: 'singleplayer/game/chess', component: SpChessComponent },
 
   // Catch-all redirect
   { path: '**', redirectTo: '' }

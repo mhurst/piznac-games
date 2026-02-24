@@ -13,6 +13,7 @@ const Mancala = require('./games/mancala');
 const Yahtzee = require('./games/yahtzee');
 const Poker = require('./games/poker');
 const GoFish = require('./games/go-fish');
+const Chess = require('./games/chess');
 const { getAIBettingDecision, getAIDrawDecision, getAIVariantChoice, getAIWildChoice, getAIDelay } = require('./games/poker-ai');
 const { validateUsername } = require('./utils/validate-username');
 
@@ -31,7 +32,8 @@ const MAX_PLAYERS = {
   'yahtzee': 4,
   'poker': 6,
   'poker-holdem': 6,
-  'go-fish': 4
+  'go-fish': 4,
+  'chess': 2
 };
 
 const ALLOWED_ORIGINS = [
@@ -395,6 +397,8 @@ io.on('connection', (socket) => {
       room.game = new War(room.players[0].id, room.players[1].id);
     } else if (room.gameType === 'mancala') {
       room.game = new Mancala(room.players[0].id, room.players[1].id);
+    } else if (room.gameType === 'chess') {
+      room.game = new Chess(room.players[0].id, room.players[1].id);
     }
 
     // Emit directly to both players (with player-specific state for Battleship)
@@ -597,7 +601,11 @@ io.on('connection', (socket) => {
         // Go Fish
         gotCards: result.gotCards, drewMatch: result.drewMatch,
         cardsGiven: result.cardsGiven, anotherTurn: result.anotherTurn,
-        newBook: result.newBook
+        newBook: result.newBook,
+        // Chess
+        special: result.special, inCheck: result.inCheck,
+        // Common
+        move: result.move, captured: result.captured
       };
 
       // Send player-specific state to each player (skip AI bots)
@@ -686,6 +694,8 @@ io.on('connection', (socket) => {
         room.game = new Poker(room.players.map(p => p.id), { lockedVariant: 'texas-holdem', aiBots: botIds, chipOverrides: rematchChipOverrides });
       } else if (room.gameType === 'go-fish') {
         room.game = new GoFish(room.players.map(p => p.id));
+      } else if (room.gameType === 'chess') {
+        room.game = new Chess(room.players[0].id, room.players[1].id);
       }
 
       // Send player-specific state to each player (skip AI bots)
@@ -840,6 +850,8 @@ io.on('connection', (socket) => {
       room.game = new Yahtzee(room.players.map(p => p.id));
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(room.players.map(p => p.id));
+    } else if (room.gameType === 'chess') {
+      room.game = new Chess(room.players[0].id, room.players[1].id);
     }
 
     rooms.set(roomCode, room);
