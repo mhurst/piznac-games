@@ -25,9 +25,9 @@ export interface ChessGameState {
   isDraw: boolean;
 }
 
-// Unicode chess piece symbols
+// Unicode chess piece symbols — use filled set for both sides, color via text style
 const PIECE_SYMBOLS: Record<string, string> = {
-  'wK': '\u2654', 'wQ': '\u2655', 'wR': '\u2656', 'wB': '\u2657', 'wN': '\u2658', 'wP': '\u2659',
+  'wK': '\u265A', 'wQ': '\u265B', 'wR': '\u265C', 'wB': '\u265D', 'wN': '\u265E', 'wP': '\u265F',
   'bK': '\u265A', 'bQ': '\u265B', 'bR': '\u265C', 'bB': '\u265D', 'bN': '\u265E', 'bP': '\u265F'
 };
 
@@ -260,9 +260,13 @@ export class ChessScene extends Phaser.Scene {
       zone.setInteractive({ useHandCursor: true });
       overlay.add(zone);
 
+      const isWhite = this.myColor === 'W';
       const text = this.add.text(startX + this.cellSize / 2, y + this.cellSize / 2, symbol, {
         fontSize: '42px',
-        fontFamily: 'Arial'
+        fontFamily: 'Arial',
+        color: isWhite ? '#ffffff' : '#1a1a1a',
+        stroke: isWhite ? '#333333' : '#888888',
+        strokeThickness: isWhite ? 2 : 1
       }).setOrigin(0.5);
       overlay.add(text);
 
@@ -433,10 +437,14 @@ export class ChessScene extends Phaser.Scene {
     const cy = this.gridOffset.y + row * this.cellSize + this.cellSize / 2;
 
     const symbol = PIECE_SYMBOLS[piece] || '?';
+    const isWhite = piece[0] === 'w';
 
     const text = this.add.text(cx, cy, symbol, {
       fontSize: '42px',
-      fontFamily: 'Arial'
+      fontFamily: 'Arial',
+      color: isWhite ? '#ffffff' : '#1a1a1a',
+      stroke: isWhite ? '#333333' : '#888888',
+      strokeThickness: isWhite ? 2 : 1
     }).setOrigin(0.5);
 
     this.pieceTexts.set(`${row}-${col}`, text);
