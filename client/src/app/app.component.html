@@ -39,6 +39,18 @@
     </div>
   </header>
 
+  @if (!betaDismissed) {
+    <div class="beta-banner">
+      <div class="beta-banner-content" (click)="viewUpdates()">
+        <span class="beta-tag">BETA</span><span class="version-tag">v0.8.0</span>
+        <span class="beta-notes">{{ latestNote }}</span>
+      </div>
+      <button class="beta-dismiss" (click)="dismissBeta()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  }
+
   <main class="app-content">
     <router-outlet></router-outlet>
   </main>

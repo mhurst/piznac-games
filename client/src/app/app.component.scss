@@ -126,6 +126,70 @@
   }
 }
 
+.beta-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 32px;
+  background: linear-gradient(90deg, rgba(#e94560, 0.15), rgba(#0f3460, 0.3));
+  border-bottom: 1px solid rgba(#e94560, 0.25);
+}
+
+.beta-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+
+  &:hover {
+    .beta-notes {
+      text-decoration: underline;
+    }
+  }
+}
+
+.beta-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #1a1a2e;
+  background: #e94560;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.version-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.beta-notes {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.beta-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  display: flex;
+  transition: color 0.2s;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: #e94560;
+  }
+}
+
 .app-content {
   flex: 1;
 }

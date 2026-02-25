@@ -13,6 +13,7 @@ import { PresenceService } from './core/presence.service';
 import { AudioService } from './core/audio/audio.service';
 import { NameDialogComponent } from './shared/name-dialog/name-dialog.component';
 import { ChallengeDialogComponent, ChallengeDialogResult } from './shared/challenge-dialog/challenge-dialog.component';
+import { UPDATE_NOTES } from './updates/update-notes';
 
 @Component({
   selector: 'app-root',
@@ -35,6 +36,10 @@ export class AppComponent implements OnInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   private challengeDialogOpen = false;
 
+  // Beta banner
+  betaDismissed = false;
+  latestNote = UPDATE_NOTES[0].date + ' — ' + UPDATE_NOTES[0].note;
+
   get userName(): string {
     return this.userService.getUserName();
   }
@@ -54,6 +59,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.checkBetaBanner();
     this.checkUserAndConnect();
     this.setupChallengeListeners();
     this.setupNameErrorListener();
@@ -172,6 +178,20 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       }
     });
+  }
+
+  dismissBeta(): void {
+    this.betaDismissed = true;
+    localStorage.setItem('beta-dismissed', UPDATE_NOTES[0].date);
+  }
+
+  private checkBetaBanner(): void {
+    const dismissed = localStorage.getItem('beta-dismissed');
+    this.betaDismissed = dismissed === UPDATE_NOTES[0].date;
+  }
+
+  viewUpdates(): void {
+    this.router.navigate(['/updates']);
   }
 
   logout(): void {

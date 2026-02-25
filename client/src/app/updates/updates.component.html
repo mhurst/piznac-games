@@ -1,0 +1,27 @@
+<div class="updates-container">
+  <div class="updates-content">
+    <div class="updates-header">
+      <h2>Update Log</h2>
+      <button mat-stroked-button (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </button>
+    </div>
+
+    @for (note of notes; track note.date) {
+      <div class="note-card">
+        <div class="note-header">
+          <span class="note-date">{{ note.date }}</span>
+          <span class="note-summary">{{ note.note }}</span>
+        </div>
+        @if (note.details && note.details.length > 0) {
+          <ul class="note-details">
+            @for (detail of note.details; track detail) {
+              <li>{{ detail }}</li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </div>
+</div>

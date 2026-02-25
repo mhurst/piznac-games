@@ -1,0 +1,84 @@
+.updates-container {
+  min-height: calc(100vh - 80px);
+  background: #1a1a2e;
+  color: #eee;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.updates-content {
+  max-width: 700px;
+  width: 100%;
+}
+
+.updates-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+
+  h2 {
+    font-size: 1.8rem;
+    margin: 0;
+    color: #e94560;
+  }
+
+  button {
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-right: 4px;
+    }
+  }
+}
+
+.note-card {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+  border-left: 3px solid #e94560;
+}
+
+.note-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.note-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.note-summary {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #eee;
+}
+
+.note-details {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  list-style: none;
+
+  li {
+    position: relative;
+    padding-left: 16px;
+    margin-bottom: 6px;
+    color: #aaa;
+    font-size: 0.9rem;
+
+    &::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #e94560;
+    }
+  }
+}

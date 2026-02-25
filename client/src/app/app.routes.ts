@@ -26,6 +26,7 @@ import { SpDartsComponent } from './singleplayer/games/darts/sp-darts.component'
 import { SpPokerComponent } from './singleplayer/games/poker/sp-poker.component';
 import { PokerMpComponent } from './multiplayer/games/poker/poker.component';
 import { SpGoFishComponent } from './singleplayer/games/go-fish/sp-go-fish.component';
+import { UpdatesComponent } from './updates/updates.component';
 import { GoFishMpComponent } from './multiplayer/games/go-fish/go-fish.component';
 import { SpChessComponent } from './singleplayer/games/chess/sp-chess.component';
 import { ChessMpComponent } from './multiplayer/games/chess/chess.component';
@@ -68,6 +69,9 @@ export const routes: Routes = [
   { path: 'singleplayer/game/poker-holdem', component: SpPokerComponent },
   { path: 'singleplayer/game/go-fish', component: SpGoFishComponent },
   { path: 'singleplayer/game/chess', component: SpChessComponent },
+
+  // Updates
+  { path: 'updates', component: UpdatesComponent },
 
   // Catch-all redirect
   { path: '**', redirectTo: '' }
