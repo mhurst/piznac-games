@@ -25,6 +25,7 @@ export class CheckersComponent implements AfterViewInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   private roomCode = '';
   private myId = '';
+  private opponentName = 'Opponent';
 
   gameOver = false;
   rematchRequested = false;
@@ -47,7 +48,7 @@ export class CheckersComponent implements AfterViewInit, OnDestroy {
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
       width: 520,
-      height: 560,
+      height: 640,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -69,7 +70,7 @@ export class CheckersComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private initBoard(gameState: any): void {
+  private initBoard(gameState: any, players?: any[]): void {
     this.myId = this.socketService.getSocketId();
 
     if (gameState.players.R === this.myId) {
@@ -77,6 +78,15 @@ export class CheckersComponent implements AfterViewInit, OnDestroy {
     } else {
       this.scene.setSymbol('B');
     }
+
+    // Set opponent name from players array
+    if (players) {
+      const opponent = players.find((p: any) => p.id !== this.myId);
+      if (opponent) {
+        this.opponentName = opponent.name || 'Opponent';
+      }
+    }
+    this.scene.setOpponentName(this.opponentName);
 
     this.scene.updateState(
       gameState.board,
@@ -94,7 +104,8 @@ export class CheckersComponent implements AfterViewInit, OnDestroy {
     this.subscriptions.push(
       this.socketService.on<{ players: any; gameState: any; error?: string }>('state-response').subscribe((data) => {
         if (data.error || !data.gameState) return;
-        this.initBoard(data.gameState);
+        const playersArr = Array.isArray(data.players) ? data.players : undefined;
+        this.initBoard(data.gameState, playersArr);
       })
     );
 
@@ -138,7 +149,7 @@ export class CheckersComponent implements AfterViewInit, OnDestroy {
         this.gameOver = false;
         this.rematchRequested = false;
         this.scene.resetGame();
-        this.initBoard(gameState);
+        this.initBoard(gameState, players);
       })
     );
 

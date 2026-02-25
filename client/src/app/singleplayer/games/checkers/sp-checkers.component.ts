@@ -9,6 +9,7 @@ import { CheckersScene, CheckersMove } from '../../../games/checkers/checkers.sc
 import { CheckersAI, CheckersBoard } from '../../../core/ai/checkers.ai';
 import { Difficulty, DEFAULT_AI_CONFIG } from '../../../core/ai/game-ai.interface';
 import { AudioService } from '../../../core/audio/audio.service';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 @Component({
   selector: 'app-sp-checkers',
@@ -36,6 +37,7 @@ export class SpCheckersComponent implements AfterViewInit, OnDestroy {
   aiSymbol: 'R' | 'B' = 'B';
   playerScore = 0;
   aiScore = 0;
+  aiDisplayName = 'AI';
 
   constructor(
     private router: Router,
@@ -49,7 +51,7 @@ export class SpCheckersComponent implements AfterViewInit, OnDestroy {
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
       width: 520,
-      height: 560,
+      height: 640,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -92,6 +94,7 @@ export class SpCheckersComponent implements AfterViewInit, OnDestroy {
   startGame(): void {
     this.audio.init();
     this.aiSymbol = this.playerSymbol === 'R' ? 'B' : 'R';
+    this.aiDisplayName = getRandomAINames(1)[0];
     this.gameStarted = true;
     this.gameOver = false;
     this.initBoard();
@@ -102,6 +105,7 @@ export class SpCheckersComponent implements AfterViewInit, OnDestroy {
     this.ai.setSymbols(this.aiSymbol);
     this.scene.resetGame();
     this.scene.setSymbol(this.playerSymbol);
+    this.scene.setOpponentName(this.aiDisplayName);
     this.updateSceneState();
 
     // If AI is Red, AI goes first

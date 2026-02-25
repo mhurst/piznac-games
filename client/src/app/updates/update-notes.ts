@@ -4,9 +4,19 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.1';
+export const APP_VERSION = 'v0.8.2';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '02-25-2026',
+    note: 'Checkers: added player avatars and board orientation fix.',
+    details: [
+      'AI opponent avatar and name displayed at top of board',
+      'Player "YOU" avatar at bottom of board with turn glow',
+      'Board flips when playing as Red so your pieces are always at the bottom',
+      'AI name shown in score display and turn indicator',
+    ]
+  },
   {
     date: '02-24-2026',
     note: 'Poker: added next hand modal for clearer round transitions.',

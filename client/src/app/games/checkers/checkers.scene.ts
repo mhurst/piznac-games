@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../core/ai/ai-names';
 
 const BOARD_SIZE = 8;
 
@@ -23,6 +24,10 @@ export class CheckersScene extends Phaser.Scene {
   private selectedPiece: { row: number; col: number } | null = null;
   private highlightGraphics: Phaser.GameObjects.Graphics | null = null;
   private mustContinueFrom: { row: number; col: number } | null = null;
+  private flipped = false;
+  private opponentName = 'Opponent';
+  private avatarObjects: Phaser.GameObjects.GameObject[] = [];
+  private clickZones: Phaser.GameObjects.Zone[] = [];
 
   // Colors
   private readonly LIGHT_SQUARE = 0xc4a776;
@@ -41,7 +46,21 @@ export class CheckersScene extends Phaser.Scene {
     super({ key: 'CheckersScene' });
   }
 
+  preload(): void {
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
+
+    // Don't let failed avatar loads block the scene
+    this.load.on('loaderror', (file: any) => {
+      console.warn('Failed to load avatar:', file.key);
+    });
+  }
+
   create(): void {
+    this.removeWhiteBackground();
+
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -55,19 +74,138 @@ export class CheckersScene extends Phaser.Scene {
     this.drawBoard();
     this.createClickZones();
 
-    this.turnText = this.add.text(width / 2, 30, 'Waiting...', {
-      fontSize: '24px',
+    this.turnText = this.add.text(width - 10, 30, 'Waiting...', {
+      fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0.5);
 
-    this.statusText = this.add.text(width / 2, height - 25, '', {
-      fontSize: '18px',
+    this.statusText = this.add.text(width - 10, height - 20, '', {
+      fontSize: '14px',
       color: '#888888',
       fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0.5);
 
     if (this.onReady) this.onReady();
+  }
+
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
+  }
+
+  public setOpponentName(name: string): void {
+    this.opponentName = name;
+    this.drawPlayerInfo();
+  }
+
+  private drawPlayerInfo(): void {
+    // Clear previous avatar objects
+    this.avatarObjects.forEach(obj => obj.destroy());
+    this.avatarObjects = [];
+
+    const avatarR = 18;
+    const avatarX = 35;
+    const topY = 30;
+    const bottomY = this.cameras.main.height - 20;
+
+    // --- Opponent avatar (top-left) ---
+    const opBorderColor = !this.isMyTurn && !this.gameOver ? 0xffd700 : 0x888888;
+
+    // Glow when it's opponent's turn
+    if (!this.isMyTurn && !this.gameOver) {
+      const glowGfx = this.add.graphics().setDepth(9);
+      glowGfx.fillStyle(0xffd700, 0.15);
+      glowGfx.fillCircle(avatarX, topY, avatarR + 7);
+      this.avatarObjects.push(glowGfx);
+    }
+
+    const imageKey = `avatar_${this.opponentName}`;
+    const hasSprite = this.textures.exists(imageKey);
+
+    const opAvatarGfx = this.add.graphics().setDepth(10);
+    opAvatarGfx.fillStyle(0x1a1a2e, 1);
+    opAvatarGfx.fillCircle(avatarX, topY, avatarR);
+    opAvatarGfx.lineStyle(3, opBorderColor, 1);
+    opAvatarGfx.strokeCircle(avatarX, topY, avatarR + 1);
+    this.avatarObjects.push(opAvatarGfx);
+
+    if (hasSprite) {
+      const avatarImg = this.add.image(avatarX, topY, imageKey)
+        .setDisplaySize(avatarR * 2, avatarR * 2)
+        .setDepth(10);
+      const maskGfx = this.make.graphics({});
+      maskGfx.fillStyle(0xffffff);
+      maskGfx.fillCircle(avatarX, topY, avatarR - 1);
+      avatarImg.setMask(maskGfx.createGeometryMask());
+      this.avatarObjects.push(avatarImg);
+      this.avatarObjects.push(maskGfx as unknown as Phaser.GameObjects.GameObject);
+    } else {
+      const avatar = getAvatarConfig(this.opponentName);
+      opAvatarGfx.fillStyle(avatar.color, 1);
+      opAvatarGfx.fillCircle(avatarX, topY, avatarR - 2);
+      const initialText = this.add.text(avatarX, topY, avatar.initial, {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11);
+      this.avatarObjects.push(initialText);
+    }
+
+    // Opponent name text
+    const opNameText = this.add.text(avatarX + avatarR + 8, topY, this.opponentName, {
+      fontSize: '14px', color: '#cccccc', fontFamily: 'Arial'
+    }).setOrigin(0, 0.5).setDepth(10);
+    this.avatarObjects.push(opNameText);
+
+    // --- Player avatar (bottom-left) ---
+    const myBorderColor = this.isMyTurn && !this.gameOver ? 0xffd700 : 0x888888;
+
+    // Glow when it's player's turn
+    if (this.isMyTurn && !this.gameOver) {
+      const glowGfx = this.add.graphics().setDepth(9);
+      glowGfx.fillStyle(0xffd700, 0.15);
+      glowGfx.fillCircle(avatarX, bottomY, avatarR + 7);
+      this.avatarObjects.push(glowGfx);
+    }
+
+    const myAvatarGfx = this.add.graphics().setDepth(10);
+    myAvatarGfx.fillStyle(0x2e7d32, 1);
+    myAvatarGfx.fillCircle(avatarX, bottomY, avatarR);
+    myAvatarGfx.lineStyle(3, myBorderColor, 1);
+    myAvatarGfx.strokeCircle(avatarX, bottomY, avatarR + 1);
+    this.avatarObjects.push(myAvatarGfx);
+
+    const youText = this.add.text(avatarX, bottomY, 'Y', {
+      fontSize: '13px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(11);
+    this.avatarObjects.push(youText);
+
+    const myNameText = this.add.text(avatarX + avatarR + 8, bottomY, 'YOU', {
+      fontSize: '14px', color: '#cccccc', fontFamily: 'Arial'
+    }).setOrigin(0, 0.5).setDepth(10);
+    this.avatarObjects.push(myNameText);
   }
 
   private initBoard(): void {
@@ -116,19 +254,29 @@ export class CheckersScene extends Phaser.Scene {
     );
   }
 
+  /** Convert logical row to display row, accounting for board flip. */
+  private displayRow(row: number): number {
+    return this.flipped ? 7 - row : row;
+  }
+
   private createClickZones(): void {
+    // Destroy old zones first
+    this.clickZones.forEach(z => z.destroy());
+    this.clickZones = [];
+
     for (let row = 0; row < BOARD_SIZE; row++) {
       for (let col = 0; col < BOARD_SIZE; col++) {
         // Only dark squares are playable
         if ((row + col) % 2 === 0) continue;
 
+        const dRow = this.displayRow(row);
         const x = this.gridOffset.x + col * this.cellSize + this.cellSize / 2;
-        const y = this.gridOffset.y + row * this.cellSize + this.cellSize / 2;
+        const y = this.gridOffset.y + dRow * this.cellSize + this.cellSize / 2;
 
         const zone = this.add.zone(x, y, this.cellSize, this.cellSize);
         zone.setInteractive({ useHandCursor: true });
-
         zone.on('pointerdown', () => this.handleClick(row, col));
+        this.clickZones.push(zone);
       }
     }
   }
@@ -205,7 +353,7 @@ export class CheckersScene extends Phaser.Scene {
 
     // Highlight selected piece
     const sx = this.gridOffset.x + from.col * this.cellSize;
-    const sy = this.gridOffset.y + from.row * this.cellSize;
+    const sy = this.gridOffset.y + this.displayRow(from.row) * this.cellSize;
     this.highlightGraphics.fillStyle(this.SELECTION_COLOR, 0.4);
     this.highlightGraphics.fillRect(sx, sy, this.cellSize, this.cellSize);
 
@@ -216,7 +364,7 @@ export class CheckersScene extends Phaser.Scene {
 
     for (const move of movesForPiece) {
       const mx = this.gridOffset.x + move.toCol * this.cellSize;
-      const my = this.gridOffset.y + move.toRow * this.cellSize;
+      const my = this.gridOffset.y + this.displayRow(move.toRow) * this.cellSize;
       this.highlightGraphics.fillStyle(this.VALID_MOVE_COLOR, 0.3);
       this.highlightGraphics.fillRect(mx, my, this.cellSize, this.cellSize);
 
@@ -253,11 +401,13 @@ export class CheckersScene extends Phaser.Scene {
       this.turnText.setText('Continue jumping!');
       this.turnText.setColor('#ffff00');
     } else {
-      this.turnText.setText(this.isMyTurn ? 'Your turn!' : "Opponent's turn...");
+      const opName = this.opponentName;
+      this.turnText.setText(this.isMyTurn ? 'Your turn!' : `${opName}'s turn...`);
       this.turnText.setColor(this.isMyTurn ? '#e94560' : '#888888');
     }
 
     this.redrawPieces();
+    this.drawPlayerInfo();
 
     // Handle chain jump highlighting
     if (mustContinueFrom && this.isMyTurn) {
@@ -270,8 +420,12 @@ export class CheckersScene extends Phaser.Scene {
 
   public setSymbol(symbol: 'R' | 'B'): void {
     this.mySymbol = symbol;
+    this.flipped = symbol === 'R';
     const colorName = symbol === 'R' ? 'Red' : 'Black';
     this.statusText.setText(`You are ${colorName} (${symbol === 'R' ? 'first' : 'second'})`);
+
+    // Recreate click zones with new flip state
+    this.createClickZones();
   }
 
   private redrawPieces(): void {
@@ -290,8 +444,9 @@ export class CheckersScene extends Phaser.Scene {
   }
 
   private drawPiece(row: number, col: number, piece: 'r' | 'R' | 'b' | 'B'): void {
+    const dRow = this.displayRow(row);
     const cx = this.gridOffset.x + col * this.cellSize + this.cellSize / 2;
-    const cy = this.gridOffset.y + row * this.cellSize + this.cellSize / 2;
+    const cy = this.gridOffset.y + dRow * this.cellSize + this.cellSize / 2;
     const radius = this.cellSize * 0.38;
 
     const container = this.add.container(cx, cy);
@@ -362,7 +517,7 @@ export class CheckersScene extends Phaser.Scene {
       }
 
       const targetX = this.gridOffset.x + move.toCol * this.cellSize + this.cellSize / 2;
-      const targetY = this.gridOffset.y + move.toRow * this.cellSize + this.cellSize / 2;
+      const targetY = this.gridOffset.y + this.displayRow(move.toRow) * this.cellSize + this.cellSize / 2;
 
       // Animate captured piece fade out
       if (captured) {
@@ -414,7 +569,10 @@ export class CheckersScene extends Phaser.Scene {
 
     this.turnText.setText(message);
     this.turnText.setColor(isDraw ? '#ffff00' : (winner === myId ? '#00ff00' : '#e94560'));
-    this.turnText.setFontSize(32);
+    this.turnText.setFontSize(28);
+
+    // Redraw avatars without glow
+    this.drawPlayerInfo();
   }
 
   public resetGame(): void {
@@ -423,7 +581,7 @@ export class CheckersScene extends Phaser.Scene {
     this.selectedPiece = null;
     this.mustContinueFrom = null;
     this.validMoves = [];
-    this.turnText.setFontSize(24);
+    this.turnText.setFontSize(20);
     this.clearHighlights();
 
     this.pieceGraphics.forEach(container => container.destroy());
