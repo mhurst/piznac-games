@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../../core/ai/ai-names';
 
 export class TicTacToeScene extends Phaser.Scene {
   private board: (string | null)[] = Array(9).fill(null);
@@ -10,6 +11,8 @@ export class TicTacToeScene extends Phaser.Scene {
   private cellGraphics: Phaser.GameObjects.Graphics[] = [];
   private turnText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
+  private opponentName = 'Opponent';
+  private avatarObjects: Phaser.GameObjects.GameObject[] = [];
 
   // Callbacks to communicate with Angular
   public onCellClick: ((cellIndex: number) => void) | null = null;
@@ -19,7 +22,19 @@ export class TicTacToeScene extends Phaser.Scene {
     super({ key: 'TicTacToeScene' });
   }
 
+  preload(): void {
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
+    this.load.on('loaderror', (file: any) => {
+      console.warn('Failed to load avatar:', file.key);
+    });
+  }
+
   create(): void {
+    this.removeWhiteBackground();
+
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -34,20 +49,135 @@ export class TicTacToeScene extends Phaser.Scene {
     // Create clickable cells
     this.createCells();
 
-    // Status text
-    this.turnText = this.add.text(width / 2, 40, 'Waiting...', {
-      fontSize: '24px',
+    // Turn text (right-aligned to leave room for avatar on left)
+    this.turnText = this.add.text(width - 10, 40, 'Waiting...', {
+      fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0.5);
 
-    this.statusText = this.add.text(width / 2, height - 40, '', {
-      fontSize: '18px',
+    this.statusText = this.add.text(width - 10, height - 25, '', {
+      fontSize: '14px',
       color: '#888888',
       fontFamily: 'Arial'
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0.5);
 
     if (this.onReady) this.onReady();
+  }
+
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
+  }
+
+  public setOpponentName(name: string): void {
+    this.opponentName = name;
+    this.drawPlayerInfo();
+  }
+
+  private drawPlayerInfo(): void {
+    this.avatarObjects.forEach(obj => obj.destroy());
+    this.avatarObjects = [];
+
+    const avatarR = 18;
+    const avatarX = 35;
+    const topY = 40;
+    const bottomY = this.cameras.main.height - 25;
+
+    // --- Opponent avatar (top-left) ---
+    const opBorderColor = !this.isMyTurn && !this.gameOver ? 0xffd700 : 0x888888;
+
+    if (!this.isMyTurn && !this.gameOver) {
+      const glowGfx = this.add.graphics().setDepth(9);
+      glowGfx.fillStyle(0xffd700, 0.15);
+      glowGfx.fillCircle(avatarX, topY, avatarR + 7);
+      this.avatarObjects.push(glowGfx);
+    }
+
+    const imageKey = `avatar_${this.opponentName}`;
+    const hasSprite = this.textures.exists(imageKey);
+
+    const opAvatarGfx = this.add.graphics().setDepth(10);
+    opAvatarGfx.fillStyle(0x1a1a2e, 1);
+    opAvatarGfx.fillCircle(avatarX, topY, avatarR);
+    opAvatarGfx.lineStyle(3, opBorderColor, 1);
+    opAvatarGfx.strokeCircle(avatarX, topY, avatarR + 1);
+    this.avatarObjects.push(opAvatarGfx);
+
+    if (hasSprite) {
+      const avatarImg = this.add.image(avatarX, topY, imageKey)
+        .setDisplaySize(avatarR * 2, avatarR * 2)
+        .setDepth(10);
+      const maskGfx = this.make.graphics({});
+      maskGfx.fillStyle(0xffffff);
+      maskGfx.fillCircle(avatarX, topY, avatarR - 1);
+      avatarImg.setMask(maskGfx.createGeometryMask());
+      this.avatarObjects.push(avatarImg);
+      this.avatarObjects.push(maskGfx as unknown as Phaser.GameObjects.GameObject);
+    } else {
+      const avatar = getAvatarConfig(this.opponentName);
+      opAvatarGfx.fillStyle(avatar.color, 1);
+      opAvatarGfx.fillCircle(avatarX, topY, avatarR - 2);
+      const initialText = this.add.text(avatarX, topY, avatar.initial, {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11);
+      this.avatarObjects.push(initialText);
+    }
+
+    const opNameText = this.add.text(avatarX + avatarR + 8, topY, this.opponentName, {
+      fontSize: '14px', color: '#cccccc', fontFamily: 'Arial'
+    }).setOrigin(0, 0.5).setDepth(10);
+    this.avatarObjects.push(opNameText);
+
+    // --- Player avatar (bottom-left) ---
+    const myBorderColor = this.isMyTurn && !this.gameOver ? 0xffd700 : 0x888888;
+
+    if (this.isMyTurn && !this.gameOver) {
+      const glowGfx = this.add.graphics().setDepth(9);
+      glowGfx.fillStyle(0xffd700, 0.15);
+      glowGfx.fillCircle(avatarX, bottomY, avatarR + 7);
+      this.avatarObjects.push(glowGfx);
+    }
+
+    const myAvatarGfx = this.add.graphics().setDepth(10);
+    myAvatarGfx.fillStyle(0x2e7d32, 1);
+    myAvatarGfx.fillCircle(avatarX, bottomY, avatarR);
+    myAvatarGfx.lineStyle(3, myBorderColor, 1);
+    myAvatarGfx.strokeCircle(avatarX, bottomY, avatarR + 1);
+    this.avatarObjects.push(myAvatarGfx);
+
+    const youText = this.add.text(avatarX, bottomY, 'Y', {
+      fontSize: '13px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(11);
+    this.avatarObjects.push(youText);
+
+    const myNameText = this.add.text(avatarX + avatarR + 8, bottomY, 'YOU', {
+      fontSize: '14px', color: '#cccccc', fontFamily: 'Arial'
+    }).setOrigin(0, 0.5).setDepth(10);
+    this.avatarObjects.push(myNameText);
   }
 
   private drawGrid(): void {
@@ -105,8 +235,6 @@ export class TicTacToeScene extends Phaser.Scene {
     this.clearHover(index);
     const row = Math.floor(index / 3);
     const col = index % 3;
-    const cx = this.gridOffset.x + col * this.cellSize + this.cellSize / 2;
-    const cy = this.gridOffset.y + row * this.cellSize + this.cellSize / 2;
 
     const graphics = this.add.graphics();
     graphics.fillStyle(0x0f3460, 0.3);
@@ -134,12 +262,13 @@ export class TicTacToeScene extends Phaser.Scene {
     this.board = board;
     this.isMyTurn = currentPlayerId === myId;
 
-    // Determine my symbol
-    this.turnText.setText(this.isMyTurn ? 'Your turn!' : "Opponent's turn...");
+    const opName = this.opponentName;
+    this.turnText.setText(this.isMyTurn ? 'Your turn!' : `${opName}'s turn...`);
     this.turnText.setColor(this.isMyTurn ? '#e94560' : '#888888');
 
     // Redraw all pieces
     this.redrawPieces();
+    this.drawPlayerInfo();
   }
 
   public setSymbol(symbol: 'X' | 'O'): void {
@@ -201,7 +330,9 @@ export class TicTacToeScene extends Phaser.Scene {
 
     this.turnText.setText(message);
     this.turnText.setColor(isDraw ? '#ffff00' : (winner === myId ? '#00ff00' : '#e94560'));
-    this.turnText.setFontSize(32);
+    this.turnText.setFontSize(28);
+
+    this.drawPlayerInfo();
   }
 
   private drawWinningLine(line: number[]): void {
@@ -228,7 +359,7 @@ export class TicTacToeScene extends Phaser.Scene {
   public resetGame(): void {
     this.board = Array(9).fill(null);
     this.gameOver = false;
-    this.turnText.setFontSize(24);
+    this.turnText.setFontSize(20);
 
     // Clear all piece graphics
     this.cellGraphics.forEach(g => g.destroy());

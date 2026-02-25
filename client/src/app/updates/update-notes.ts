@@ -4,9 +4,18 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.2';
+export const APP_VERSION = 'v0.8.3';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '02-25-2026',
+    note: 'Tic-Tac-Toe: added player avatars.',
+    details: [
+      'AI opponent avatar and name displayed at top of board',
+      'Player "YOU" avatar at bottom with turn glow',
+      'AI name shown in score display and turn indicator',
+    ]
+  },
   {
     date: '02-25-2026',
     note: 'Checkers: added player avatars and board orientation fix.',

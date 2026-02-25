@@ -24,6 +24,7 @@ export class TicTacToeComponent implements AfterViewInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   private roomCode = '';
   private myId = '';
+  private opponentName = 'Opponent';
 
   gameOver = false;
   rematchRequested = false;
@@ -45,7 +46,7 @@ export class TicTacToeComponent implements AfterViewInit, OnDestroy {
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
       width: 500,
-      height: 580,
+      height: 620,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -67,7 +68,7 @@ export class TicTacToeComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private initBoard(gameState: any): void {
+  private initBoard(gameState: any, players?: any[]): void {
     this.myId = this.socketService.getSocketId();
 
     if (gameState.players.X === this.myId) {
@@ -75,6 +76,14 @@ export class TicTacToeComponent implements AfterViewInit, OnDestroy {
     } else {
       this.scene.setSymbol('O');
     }
+
+    if (players) {
+      const opponent = players.find((p: any) => p.id !== this.myId);
+      if (opponent) {
+        this.opponentName = opponent.name || 'Opponent';
+      }
+    }
+    this.scene.setOpponentName(this.opponentName);
 
     this.scene.updateBoard(gameState.board, gameState.currentPlayerId, this.myId);
   }
@@ -86,7 +95,8 @@ export class TicTacToeComponent implements AfterViewInit, OnDestroy {
     this.subscriptions.push(
       this.socketService.on<{ players: any; gameState: any; error?: string }>('state-response').subscribe((data) => {
         if (data.error || !data.gameState) return;
-        this.initBoard(data.gameState);
+        const playersArr = Array.isArray(data.players) ? data.players : undefined;
+        this.initBoard(data.gameState, playersArr);
       })
     );
 
@@ -113,7 +123,7 @@ export class TicTacToeComponent implements AfterViewInit, OnDestroy {
         this.gameOver = false;
         this.rematchRequested = false;
         this.scene.resetGame();
-        this.initBoard(gameState);
+        this.initBoard(gameState, players);
       })
     );
 

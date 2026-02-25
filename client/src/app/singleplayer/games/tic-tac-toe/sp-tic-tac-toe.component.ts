@@ -8,6 +8,7 @@ import Phaser from 'phaser';
 import { TicTacToeScene } from '../../../multiplayer/games/tic-tac-toe/tic-tac-toe.scene';
 import { TicTacToeAI, TicTacToeBoard } from '../../../core/ai/tic-tac-toe.ai';
 import { Difficulty, DEFAULT_AI_CONFIG } from '../../../core/ai/game-ai.interface';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 @Component({
   selector: 'app-sp-tic-tac-toe',
@@ -33,6 +34,7 @@ export class SpTicTacToeComponent implements AfterViewInit, OnDestroy {
   aiSymbol: 'X' | 'O' = 'O';
   playerScore = 0;
   aiScore = 0;
+  aiDisplayName = 'AI';
 
   constructor(
     private router: Router,
@@ -45,7 +47,7 @@ export class SpTicTacToeComponent implements AfterViewInit, OnDestroy {
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
       width: 500,
-      height: 580,
+      height: 620,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -66,6 +68,7 @@ export class SpTicTacToeComponent implements AfterViewInit, OnDestroy {
   }
 
   startGame(): void {
+    this.aiDisplayName = getRandomAINames(1)[0];
     this.gameStarted = true;
     this.gameOver = false;
     this.board = Array(9).fill(null);
@@ -74,6 +77,7 @@ export class SpTicTacToeComponent implements AfterViewInit, OnDestroy {
     this.ai.setSymbols(this.aiSymbol);
     this.scene.resetGame();
     this.scene.setSymbol(this.playerSymbol);
+    this.scene.setOpponentName(this.aiDisplayName);
     this.updateSceneBoard();
 
     // If AI is X, AI goes first
