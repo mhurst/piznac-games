@@ -13,7 +13,7 @@ import { PresenceService } from './core/presence.service';
 import { AudioService } from './core/audio/audio.service';
 import { NameDialogComponent } from './shared/name-dialog/name-dialog.component';
 import { ChallengeDialogComponent, ChallengeDialogResult } from './shared/challenge-dialog/challenge-dialog.component';
-import { UPDATE_NOTES } from './updates/update-notes';
+import { UPDATE_NOTES, APP_VERSION } from './updates/update-notes';
 
 @Component({
   selector: 'app-root',
@@ -39,6 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // Beta banner
   betaDismissed = false;
   latestNote = UPDATE_NOTES[0].date + ' — ' + UPDATE_NOTES[0].note;
+  appVersion = APP_VERSION;
 
   get userName(): string {
     return this.userService.getUserName();

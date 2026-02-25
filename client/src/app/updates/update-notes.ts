@@ -4,7 +4,16 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
+export const APP_VERSION = 'v0.8.1';
+
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '02-24-2026',
+    note: 'Poker: added next hand modal for clearer round transitions.',
+    details: [
+      'Settlement modal replaces the old message bar between hands',
+    ]
+  },
   {
     date: '02-24-2026',
     note: 'Chess added! Play vs AI or multiplayer.',
