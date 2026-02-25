@@ -9,6 +9,7 @@ import { ConnectFourScene } from '../../../games/connect-four/connect-four.scene
 import { ConnectFourAI, ConnectFourBoard } from '../../../core/ai/connect-four.ai';
 import { Difficulty, DEFAULT_AI_CONFIG } from '../../../core/ai/game-ai.interface';
 import { AudioService } from '../../../core/audio/audio.service';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 @Component({
   selector: 'app-sp-connect-four',
@@ -34,6 +35,7 @@ export class SpConnectFourComponent implements AfterViewInit, OnDestroy {
   aiSymbol: 'R' | 'Y' = 'Y';
   playerScore = 0;
   aiScore = 0;
+  aiDisplayName = 'AI';
 
   constructor(
     private router: Router,
@@ -47,7 +49,7 @@ export class SpConnectFourComponent implements AfterViewInit, OnDestroy {
     this.phaserGame = new Phaser.Game({
       type: Phaser.AUTO,
       width: 560,
-      height: 560,
+      height: 620,
       parent: this.gameCanvas.nativeElement,
       backgroundColor: '#1a1a2e',
       scene: this.scene
@@ -86,6 +88,7 @@ export class SpConnectFourComponent implements AfterViewInit, OnDestroy {
 
   startGame(): void {
     this.audio.init();
+    this.aiDisplayName = getRandomAINames(1)[0];
     this.gameStarted = true;
     this.gameOver = false;
     this.initBoard();
@@ -94,6 +97,7 @@ export class SpConnectFourComponent implements AfterViewInit, OnDestroy {
     this.ai.setSymbols(this.aiSymbol);
     this.scene.resetGame();
     this.scene.setSymbol(this.playerSymbol);
+    this.scene.setOpponentName(this.aiDisplayName);
     this.updateSceneBoard();
 
     // If AI is Red, AI goes first
