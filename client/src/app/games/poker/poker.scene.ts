@@ -80,6 +80,9 @@ export class PokerScene extends Phaser.Scene {
   // Buy-in elements
   private buyInElements: Phaser.GameObjects.GameObject[] = [];
 
+  // Settlement (next hand) elements
+  private settlementElements: Phaser.GameObjects.GameObject[] = [];
+
   // Table label (dynamic variant name)
   private tableLabel!: Phaser.GameObjects.Text;
 
@@ -112,6 +115,7 @@ export class PokerScene extends Phaser.Scene {
   private selectedVariantForWild: PokerVariant | null = null;
   private lastCardDownToggle = true; // default: 7th card down
   public onBuyInClick: (() => void) | null = null;
+  public onNextHandClick: (() => void) | null = null;
   public onReady: (() => void) | null = null;
 
   constructor() {
@@ -1052,6 +1056,79 @@ export class PokerScene extends Phaser.Scene {
     this.buyInElements.push(btnZone);
   }
 
+  // --- Settlement / Next Hand Modal ---
+
+  private clearSettlement(): void {
+    this.settlementElements.forEach(el => el.destroy());
+    this.settlementElements = [];
+  }
+
+  private showSettlement(state: PokerVisualState): void {
+    this.clearSettlement();
+
+    // Hide the normal message bar
+    this.messageText.setText('');
+    this.messageBg.clear();
+
+    const cx = this.CANVAS_W / 2;
+    const cy = 341;
+    const panelW = 340;
+    const panelH = 140;
+
+    // Solid opaque panel — no transparency
+    const overlay = this.add.graphics().setDepth(30);
+    overlay.fillStyle(0x1a1a2e);
+    overlay.fillRoundedRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 14);
+    overlay.lineStyle(2, this.GOLD, 0.7);
+    overlay.strokeRoundedRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 14);
+    this.settlementElements.push(overlay);
+
+    // Result message
+    const msg = state.message || 'Hand complete';
+    const msgText = this.add.text(cx, cy - 30, msg, {
+      fontSize: '20px', color: '#ffd700', fontFamily: 'Georgia', fontStyle: 'bold',
+      align: 'center', wordWrap: { width: panelW - 40 }
+    }).setOrigin(0.5).setDepth(31);
+    this.settlementElements.push(msgText);
+
+    // NEXT HAND button
+    const btnY = cy + 30;
+    const btnW = 160;
+    const btnH = 38;
+    const btnBg = this.add.graphics().setDepth(31);
+    btnBg.fillStyle(0x1a6b37);
+    btnBg.fillRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 8);
+    btnBg.lineStyle(1, this.GOLD, 0.5);
+    btnBg.strokeRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 8);
+    this.settlementElements.push(btnBg);
+
+    const btnText = this.add.text(cx, btnY, 'NEXT HAND', {
+      fontSize: '16px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(32);
+    this.settlementElements.push(btnText);
+
+    const btnZone = this.add.zone(cx, btnY, btnW, btnH).setInteractive({ useHandCursor: true }).setDepth(33);
+    btnZone.on('pointerdown', () => {
+      if (this.onNextHandClick) this.onNextHandClick();
+      this.clearSettlement();
+    });
+    btnZone.on('pointerover', () => {
+      btnBg.clear();
+      btnBg.fillStyle(0x238b4a);
+      btnBg.fillRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 8);
+      btnBg.lineStyle(1, this.GOLD, 0.7);
+      btnBg.strokeRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 8);
+    });
+    btnZone.on('pointerout', () => {
+      btnBg.clear();
+      btnBg.fillStyle(0x1a6b37);
+      btnBg.fillRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 8);
+      btnBg.lineStyle(1, this.GOLD, 0.5);
+      btnBg.strokeRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, 8);
+    });
+    this.settlementElements.push(btnZone);
+  }
+
   private drawWildToggle(gfx: Phaser.GameObjects.Graphics, cx: number, y: number, w: number, h: number, active: boolean): void {
     gfx.clear();
     gfx.fillStyle(active ? 0x2e5930 : 0x2a2a3a);
@@ -1255,6 +1332,13 @@ export class PokerScene extends Phaser.Scene {
       this.discardBtn.text.setText(this.selectedCards.size > 0
         ? `DISCARD (${this.selectedCards.size}/${state.maxDiscards})`
         : `DISCARD (max ${state.maxDiscards})`);
+    }
+
+    // Settlement modal (next hand prompt)
+    if (state.isSettlement) {
+      this.showSettlement(state);
+    } else {
+      this.clearSettlement();
     }
   }
 

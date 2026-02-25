@@ -102,6 +102,9 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
     this.scene.onBuyInClick = () => {
       this.gameStateService.makeMove(this.roomCode, { type: 'buy-in' });
     };
+    this.scene.onNextHandClick = () => {
+      this.nextHand();
+    };
   }
 
   private getMyPlayer(): any {
@@ -362,7 +365,8 @@ export class PokerMpComponent implements AfterViewInit, OnDestroy {
       communityCards: this.gameState.communityCards || [],
       isHoldem: isHoldemGame,
       smallBlindIndex: this.gameState.smallBlindIndex ?? -1,
-      bigBlindIndex: this.gameState.bigBlindIndex ?? -1
+      bigBlindIndex: this.gameState.bigBlindIndex ?? -1,
+      isSettlement: phase === 'settlement' && !this.gameState.gameOver
     };
 
     // Track hand sizes for stud deal animation detection

@@ -174,6 +174,9 @@ export interface PokerVisualState {
   // Buy-in phase (shows game announcement + buy-in button)
   isBuyIn: boolean;
 
+  // Settlement phase (shows next hand modal)
+  isSettlement: boolean;
+
   // 7-Card Stud
   currentStreet: number;    // 3-7, which street we're on (0 for draw)
   lastCardDown: boolean;    // whether 7th card is dealt face-down

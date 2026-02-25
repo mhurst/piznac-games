@@ -133,6 +133,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
     this.scene.onVariantSelect = (variant: PokerVariant) => this.handleVariantSelect(variant);
     this.scene.onWildCardSelect = (wilds: WildCardOption[], lastCardDown?: boolean) => this.handleWildCardSelect(wilds, lastCardDown);
     this.scene.onBuyInClick = () => this.handleBuyIn();
+    this.scene.onNextHandClick = () => this.nextHand();
   }
 
   // --- Game Start ---
@@ -1397,6 +1398,7 @@ export class SpPokerComponent implements AfterViewInit, OnDestroy {
       isDealerForWildSelect,
       activeWilds: this.activeWilds,
       isBuyIn: this.phase === 'ante' && (!humanPlayer || humanPlayer.hand.length === 0),
+      isSettlement: this.phase === 'settlement' && !this.gameOver,
       currentStreet: this.currentStreet,
       lastCardDown: this.studLastCardDown,
       isStud: this.isStud,
