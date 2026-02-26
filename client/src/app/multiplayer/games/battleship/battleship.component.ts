@@ -25,6 +25,7 @@ export class BattleshipComponent implements AfterViewInit, OnDestroy {
   private roomCode = '';
   private myId = '';
 
+  private opponentName = 'Opponent';
   phase: 'setup' | 'waiting' | 'battle' | 'gameover' = 'setup';
   gameOver = false;
   rematchRequested = false;
@@ -103,6 +104,11 @@ export class BattleshipComponent implements AfterViewInit, OnDestroy {
     this.subscriptions.push(
       this.socketService.on<{ players: any; gameState: any; error?: string }>('state-response').subscribe((data) => {
         if (data.error || !data.gameState) return;
+        if (Array.isArray(data.players)) {
+          const opponent = data.players.find((p: any) => p.id !== this.myId);
+          if (opponent) this.opponentName = opponent.name || 'Opponent';
+          this.scene.setOpponentName(this.opponentName);
+        }
         this.handleGameState(data.gameState);
       })
     );
@@ -139,7 +145,12 @@ export class BattleshipComponent implements AfterViewInit, OnDestroy {
         this.mySetupComplete = false;
         this.opponentReady = false;
         this.phase = 'setup';
+        if (players) {
+          const opponent = players.find((p: any) => p.id !== this.myId);
+          if (opponent) this.opponentName = opponent.name || 'Opponent';
+        }
         this.scene.resetGame();
+        this.scene.setOpponentName(this.opponentName);
         this.handleGameState(gameState);
       })
     );

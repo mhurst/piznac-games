@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../core/ai/ai-names';
 
 const BOARD_SIZE = 10;
 const CELL_SIZE = 36;
@@ -81,6 +82,10 @@ export class BattleshipScene extends Phaser.Scene {
   private readonly HOVER_INVALID = 0xff0000;
   private readonly SUNK_COLOR = 0x8b0000;
 
+  // Avatar
+  private opponentName = 'Opponent';
+  private avatarObjects: Phaser.GameObjects.GameObject[] = [];
+
   // Callbacks to communicate with Angular
   public onCellClick: ((row: number, col: number) => void) | null = null;
   public onShipPlaced: ((placement: ShipPlacement) => void) | null = null;
@@ -92,7 +97,18 @@ export class BattleshipScene extends Phaser.Scene {
     super({ key: 'BattleshipScene' });
   }
 
+  preload(): void {
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
+    this.load.on('loaderror', (file: any) => {
+      console.warn('Failed to load avatar:', file.key);
+    });
+  }
+
   create(): void {
+    this.removeWhiteBackground();
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -131,6 +147,127 @@ export class BattleshipScene extends Phaser.Scene {
     });
 
     if (this.onReady) this.onReady();
+  }
+
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
+  }
+
+  public setOpponentName(name: string): void {
+    this.opponentName = name;
+    this.drawPlayerInfo();
+  }
+
+  private drawPlayerInfo(): void {
+    this.avatarObjects.forEach(obj => obj.destroy());
+    this.avatarObjects = [];
+
+    const avatarR = 16;
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Only show avatars during battle phase
+    if (this.phase !== 'battle') return;
+
+    // Opponent avatar (top-left, near tracking board label area)
+    const opX = width - 120;
+    const opY = 25;
+    const opBorderColor = !this.isMyTurn && !this.gameOver ? 0xffd700 : 0x888888;
+
+    if (!this.isMyTurn && !this.gameOver) {
+      const glowGfx = this.add.graphics().setDepth(9);
+      glowGfx.fillStyle(0xffd700, 0.15);
+      glowGfx.fillCircle(opX, opY, avatarR + 6);
+      this.avatarObjects.push(glowGfx);
+    }
+
+    const imageKey = `avatar_${this.opponentName}`;
+    const hasSprite = this.textures.exists(imageKey);
+
+    const opAvatarGfx = this.add.graphics().setDepth(10);
+    opAvatarGfx.fillStyle(0x1a1a2e, 1);
+    opAvatarGfx.fillCircle(opX, opY, avatarR);
+    opAvatarGfx.lineStyle(2, opBorderColor, 1);
+    opAvatarGfx.strokeCircle(opX, opY, avatarR + 1);
+    this.avatarObjects.push(opAvatarGfx);
+
+    if (hasSprite) {
+      const avatarImg = this.add.image(opX, opY, imageKey)
+        .setDisplaySize(avatarR * 2, avatarR * 2)
+        .setDepth(10);
+      const maskGfx = this.make.graphics({});
+      maskGfx.fillStyle(0xffffff);
+      maskGfx.fillCircle(opX, opY, avatarR - 1);
+      avatarImg.setMask(maskGfx.createGeometryMask());
+      this.avatarObjects.push(avatarImg);
+      this.avatarObjects.push(maskGfx as unknown as Phaser.GameObjects.GameObject);
+    } else {
+      const avatar = getAvatarConfig(this.opponentName);
+      opAvatarGfx.fillStyle(avatar.color, 1);
+      opAvatarGfx.fillCircle(opX, opY, avatarR - 2);
+      const initialText = this.add.text(opX, opY, avatar.initial, {
+        fontSize: '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11);
+      this.avatarObjects.push(initialText);
+    }
+
+    const opNameText = this.add.text(opX + avatarR + 6, opY, this.opponentName, {
+      fontSize: '12px', color: '#cccccc', fontFamily: 'Arial'
+    }).setOrigin(0, 0.5).setDepth(10);
+    this.avatarObjects.push(opNameText);
+
+    // Player avatar (top-left, near my board label area)
+    const myX = 30;
+    const myY = 25;
+    const myBorderColor = this.isMyTurn && !this.gameOver ? 0xffd700 : 0x888888;
+
+    if (this.isMyTurn && !this.gameOver) {
+      const glowGfx = this.add.graphics().setDepth(9);
+      glowGfx.fillStyle(0xffd700, 0.15);
+      glowGfx.fillCircle(myX, myY, avatarR + 6);
+      this.avatarObjects.push(glowGfx);
+    }
+
+    const myAvatarGfx = this.add.graphics().setDepth(10);
+    myAvatarGfx.fillStyle(0x2e7d32, 1);
+    myAvatarGfx.fillCircle(myX, myY, avatarR);
+    myAvatarGfx.lineStyle(2, myBorderColor, 1);
+    myAvatarGfx.strokeCircle(myX, myY, avatarR + 1);
+    this.avatarObjects.push(myAvatarGfx);
+
+    const youText = this.add.text(myX, myY, 'Y', {
+      fontSize: '11px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(11);
+    this.avatarObjects.push(youText);
+
+    const myNameText = this.add.text(myX + avatarR + 6, myY, 'YOU', {
+      fontSize: '12px', color: '#cccccc', fontFamily: 'Arial'
+    }).setOrigin(0, 0.5).setDepth(10);
+    this.avatarObjects.push(myNameText);
   }
 
   private initBoards(): void {
@@ -480,12 +617,30 @@ export class BattleshipScene extends Phaser.Scene {
     if (horizontal && col + size > BOARD_SIZE) return false;
     if (!horizontal && row + size > BOARD_SIZE) return false;
 
-    // Check overlaps
+    // Collect ship cells
+    const shipCells: { r: number; c: number }[] = [];
     for (let i = 0; i < size; i++) {
       const r = horizontal ? row : row + i;
       const c = horizontal ? col + i : col;
-
       if (this.myBoard[r][c] !== null) return false;
+      shipCells.push({ r, c });
+    }
+
+    // Check all 8 neighbors for adjacent ships
+    for (const cell of shipCells) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = cell.r + dr;
+          const nc = cell.c + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            if (this.myBoard[nr][nc] !== null) {
+              // Allow if neighbor is part of this same ship
+              if (!shipCells.some(sc => sc.r === nr && sc.c === nc)) return false;
+            }
+          }
+        }
+      }
     }
 
     return true;
@@ -853,8 +1008,10 @@ export class BattleshipScene extends Phaser.Scene {
         this.drawBattlePhase();
       }
 
-      this.turnText.setText(this.isMyTurn ? 'Your turn - Fire!' : "Opponent's turn...");
+      const opName = this.opponentName;
+      this.turnText.setText(this.isMyTurn ? 'Your turn - Fire!' : `${opName}'s turn...`);
       this.turnText.setColor(this.isMyTurn ? '#e94560' : '#888888');
+      this.drawPlayerInfo();
 
       if (state.opponentShipsRemaining !== undefined && state.myShipsRemaining !== undefined) {
         let statusMsg = `Your ships: ${state.myShipsRemaining}/5 | Enemy ships: ${state.opponentShipsRemaining}/5`;

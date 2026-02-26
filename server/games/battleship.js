@@ -67,12 +67,26 @@ class Battleship {
       if (row + shipConfig.size > BOARD_SIZE) return { valid: false, message: 'Ship out of bounds' };
     }
 
-    // Check for overlaps (excluding this ship if it's being repositioned)
+    // Check for overlaps and adjacency (ships cannot touch)
     const cells = this.getShipCells(row, col, shipConfig.size, horizontal);
     for (const cell of cells) {
       const existing = this.boards[playerSymbol].ships[cell.row][cell.col];
       if (existing && existing !== shipType) {
         return { valid: false, message: 'Ships cannot overlap' };
+      }
+      // Check all 8 neighbors for adjacent ships
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = cell.row + dr;
+          const nc = cell.col + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const neighbor = this.boards[playerSymbol].ships[nr][nc];
+            if (neighbor && neighbor !== shipType) {
+              return { valid: false, message: 'Ships cannot touch each other' };
+            }
+          }
+        }
       }
     }
 

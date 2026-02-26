@@ -75,12 +75,29 @@ export class BattleshipAI {
   }
 
   private canPlaceShip(board: boolean[][], row: number, col: number, size: number, horizontal: boolean): boolean {
+    // Collect all cells this ship would occupy
+    const shipCells: { r: number; c: number }[] = [];
     for (let i = 0; i < size; i++) {
       const r = horizontal ? row : row + i;
       const c = horizontal ? col + i : col;
-
       if (r >= BOARD_SIZE || c >= BOARD_SIZE) return false;
       if (board[r][c]) return false;
+      shipCells.push({ r, c });
+    }
+
+    // Check all 8 neighbors of each cell for adjacent ships
+    for (const cell of shipCells) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = cell.r + dr;
+          const nc = cell.c + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc]) {
+            // Allow if neighbor is part of this same ship
+            if (!shipCells.some(sc => sc.r === nr && sc.c === nc)) return false;
+          }
+        }
+      }
     }
     return true;
   }

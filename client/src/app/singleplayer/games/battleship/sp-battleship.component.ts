@@ -8,6 +8,7 @@ import Phaser from 'phaser';
 import { BattleshipScene, ShipPlacement, PlacedShip, SHIPS } from '../../../games/battleship/battleship.scene';
 import { BattleshipAI } from '../../../core/ai/battleship.ai';
 import { Difficulty, DEFAULT_AI_CONFIG } from '../../../core/ai/game-ai.interface';
+import { getRandomAINames } from '../../../core/ai/ai-names';
 
 const BOARD_SIZE = 10;
 
@@ -34,6 +35,7 @@ export class SpBattleshipComponent implements AfterViewInit, OnDestroy {
   winner: string | null = null;
   playerScore = 0;
   aiScore = 0;
+  aiDisplayName = 'AI';
 
   // Player boards
   private playerShipsBoard: (string | null)[][] = [];
@@ -105,6 +107,7 @@ export class SpBattleshipComponent implements AfterViewInit, OnDestroy {
   }
 
   startGame(): void {
+    this.aiDisplayName = getRandomAINames(1)[0];
     this.gameStarted = true;
     this.gameOver = false;
     this.winner = null;
@@ -117,6 +120,7 @@ export class SpBattleshipComponent implements AfterViewInit, OnDestroy {
 
     // Reset scene and show setup phase
     this.scene.resetGame();
+    this.scene.setOpponentName(this.aiDisplayName);
     this.updateScene();
   }
 

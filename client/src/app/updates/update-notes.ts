@@ -4,9 +4,18 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.4';
+export const APP_VERSION = 'v0.8.5';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '02-25-2026',
+    note: 'Battleship: added player avatars and ship spacing rule.',
+    details: [
+      'AI opponent avatar and name displayed during battle phase',
+      'Player "YOU" avatar with turn glow indicator',
+      'Ships can no longer be placed touching each other (including diagonally)',
+    ]
+  },
   {
     date: '02-25-2026',
     note: 'Connect Four: added player avatars.',
