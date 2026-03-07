@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AI_NAMES, getAvatarConfig } from '../../core/ai/ai-names';
 
 interface Card {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -48,6 +49,11 @@ export class WarScene extends Phaser.Scene {
   private flipButton!: Phaser.GameObjects.Container;
   private flipButtonEnabled = false;
 
+  // Avatar
+  private opponentName = 'Opponent';
+  private avatarObjects: Phaser.GameObjects.GameObject[] = [];
+  private isMyTurn = true;
+
   // Callbacks
   public onFlip: (() => void) | null = null;
   public onReady: (() => void) | null = null;
@@ -73,33 +79,36 @@ export class WarScene extends Phaser.Scene {
         this.load.image(key, basePath + `card${suit}${value}.png`);
       }
     }
+
+    // Load avatar images
+    const avatarPath = 'assets/sprites/board-game/avatars/images/';
+    for (const name of AI_NAMES) {
+      this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
+    }
+
+    this.load.on('loaderror', (file: any) => {
+      console.warn('Failed to load:', file.key);
+    });
   }
 
   create(): void {
+    this.removeWhiteBackground();
+
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
     const centerX = width / 2;
 
-    // Layout positions (for 400x500 canvas):
+    // Layout positions (400x500 canvas):
     const statusY = 25;
-    const oppLabelY = 55;
     const oppDeckY = 120;
-    const centerY = height / 2;  // 250 - where flipped cards go
-    const myDeckY = height - 120;  // 380
-    const myLabelY = height - 55;  // 445
-    const flipButtonY = height - 25;  // 475
+    const centerY = height / 2;
+    const myDeckY = height - 120;
+    const flipButtonY = height - 25;
 
     // Status text at top
     this.statusText = this.add.text(centerX, statusY, 'Click FLIP to play!', {
       fontSize: '20px',
       color: '#ffffff',
-      fontFamily: 'Arial'
-    }).setOrigin(0.5);
-
-    // Opponent label
-    this.add.text(centerX, oppLabelY, 'Opponent', {
-      fontSize: '14px',
-      color: '#e94560',
       fontFamily: 'Arial'
     }).setOrigin(0.5);
 
@@ -134,17 +143,114 @@ export class WarScene extends Phaser.Scene {
       fontFamily: 'Arial'
     }).setOrigin(0, 0.5);
 
-    // My label
-    this.add.text(centerX, myLabelY, 'You', {
-      fontSize: '14px',
-      color: '#4a90d9',
-      fontFamily: 'Arial'
-    }).setOrigin(0.5);
-
     // Create flip button
     this.createFlipButton(centerX, flipButtonY);
 
+    this.drawPlayerInfo();
+
     if (this.onReady) this.onReady();
+  }
+
+  private removeWhiteBackground(): void {
+    for (const name of AI_NAMES) {
+      const key = `avatar_${name}`;
+      if (!this.textures.exists(key)) continue;
+
+      const source = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(source, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 240;
+
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] >= threshold && data[p + 1] >= threshold && data[p + 2] >= threshold) {
+          data[p + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      this.textures.remove(key);
+      this.textures.addCanvas(key, canvas);
+    }
+  }
+
+  public setOpponentName(name: string): void {
+    this.opponentName = name;
+    this.drawPlayerInfo();
+  }
+
+  private drawPlayerInfo(): void {
+    this.avatarObjects.forEach(obj => obj.destroy());
+    this.avatarObjects = [];
+
+    const avatarR = 18;
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    const centerX = width / 2;
+    const oppDeckY = 120;
+    const myDeckY = height - 120;
+
+    // Avatar X: to the left of the card
+    const avatarX = centerX - this.cardWidth / 2 - avatarR - 12;
+
+    // --- Opponent avatar (left of their deck) ---
+    const imageKey = `avatar_${this.opponentName}`;
+    const hasSprite = this.textures.exists(imageKey);
+
+    const opAvatarGfx = this.add.graphics().setDepth(10);
+    opAvatarGfx.fillStyle(0x1a1a2e, 1);
+    opAvatarGfx.fillCircle(avatarX, oppDeckY, avatarR);
+    opAvatarGfx.lineStyle(3, 0x888888, 1);
+    opAvatarGfx.strokeCircle(avatarX, oppDeckY, avatarR + 1);
+    this.avatarObjects.push(opAvatarGfx);
+
+    if (hasSprite) {
+      const avatarImg = this.add.image(avatarX, oppDeckY, imageKey)
+        .setDisplaySize(avatarR * 2, avatarR * 2)
+        .setDepth(10);
+      const maskGfx = this.make.graphics({});
+      maskGfx.fillStyle(0xffffff);
+      maskGfx.fillCircle(avatarX, oppDeckY, avatarR - 1);
+      avatarImg.setMask(maskGfx.createGeometryMask());
+      this.avatarObjects.push(avatarImg);
+      this.avatarObjects.push(maskGfx as unknown as Phaser.GameObjects.GameObject);
+    } else {
+      const avatar = getAvatarConfig(this.opponentName);
+      opAvatarGfx.fillStyle(avatar.color, 1);
+      opAvatarGfx.fillCircle(avatarX, oppDeckY, avatarR - 2);
+      const initialText = this.add.text(avatarX, oppDeckY, avatar.initial, {
+        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(11);
+      this.avatarObjects.push(initialText);
+    }
+
+    const opNameText = this.add.text(avatarX, oppDeckY + avatarR + 4, this.opponentName, {
+      fontSize: '12px', color: '#e94560', fontFamily: 'Arial'
+    }).setOrigin(0.5, 0).setDepth(10);
+    this.avatarObjects.push(opNameText);
+
+    // --- Player avatar (left of their deck) ---
+    const myAvatarGfx = this.add.graphics().setDepth(10);
+    myAvatarGfx.fillStyle(0x2e7d32, 1);
+    myAvatarGfx.fillCircle(avatarX, myDeckY, avatarR);
+    myAvatarGfx.lineStyle(3, 0x888888, 1);
+    myAvatarGfx.strokeCircle(avatarX, myDeckY, avatarR + 1);
+    this.avatarObjects.push(myAvatarGfx);
+
+    const youText = this.add.text(avatarX, myDeckY, 'Y', {
+      fontSize: '13px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(11);
+    this.avatarObjects.push(youText);
+
+    const myNameText = this.add.text(avatarX, myDeckY + avatarR + 4, 'YOU', {
+      fontSize: '12px', color: '#4a90d9', fontFamily: 'Arial'
+    }).setOrigin(0.5, 0).setDepth(10);
+    this.avatarObjects.push(myNameText);
   }
 
   private createFlipButton(x: number, y: number): void {
@@ -437,7 +543,7 @@ export class WarScene extends Phaser.Scene {
   }
 
   public showRoundResult(winnerSymbol: string, isMe: boolean): void {
-    const resultText = isMe ? 'You win!' : 'Opponent wins!';
+    const resultText = isMe ? 'You win!' : `${this.opponentName} wins!`;
     this.statusText.setText(resultText);
     this.statusText.setColor(isMe ? '#00ff00' : '#e94560');
 

@@ -4,9 +4,17 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.5';
+export const APP_VERSION = 'v0.8.6';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '03-07-2026',
+    note: 'Spades (single player) added! War layout improvements.',
+    details: [
+      'New game: Spades with AI partners and opponents',
+      'War: fixed avatar positioning to avoid card overlap',
+    ]
+  },
   {
     date: '02-25-2026',
     note: 'Battleship: added player avatars and ship spacing rule.',
