@@ -85,9 +85,9 @@ export const CARD_VALUES: Record<string, number> = {
   '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
 };
 
-/** Suit sort order for hand display (clubs, diamonds, hearts, spades). */
+/** Suit sort order for hand display — alternates black/red so same-color suits aren't adjacent. */
 export const SUIT_ORDER: Record<Suit, number> = {
-  clubs: 0, diamonds: 1, hearts: 2, spades: 3
+  spades: 0, hearts: 1, clubs: 2, diamonds: 3
 };
 
 export const SEAT_LABELS = ['You', 'Opponent', 'Partner', 'Opponent'];

@@ -253,6 +253,7 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
 
   private executePlay(seat: number, handIndex: number): void {
     const player = this.players[seat];
+    if (handIndex < 0 || handIndex >= player.hand.length) return;
     const card = player.hand.splice(handIndex, 1)[0];
 
     // Track void detection
@@ -494,10 +495,11 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
     if (idx === -1) {
       // Fallback — play first legal card
       const legal = this.getLegalPlaysForPlayer(seat);
+      if (legal.length === 0) return;
       const fallbackIdx = this.players[seat].hand.findIndex(
         c => c.suit === legal[0].suit && c.value === legal[0].value
       );
-      this.executePlay(seat, fallbackIdx);
+      this.executePlay(seat, fallbackIdx === -1 ? 0 : fallbackIdx);
       return;
     }
 
