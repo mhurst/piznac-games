@@ -30,6 +30,7 @@ import { UpdatesComponent } from './updates/updates.component';
 import { GoFishMpComponent } from './multiplayer/games/go-fish/go-fish.component';
 import { SpChessComponent } from './singleplayer/games/chess/sp-chess.component';
 import { ChessMpComponent } from './multiplayer/games/chess/chess.component';
+import { SpSpadesComponent } from './singleplayer/games/spades/sp-spades.component';
 
 export const routes: Routes = [
   // Home with tabs
@@ -69,6 +70,7 @@ export const routes: Routes = [
   { path: 'singleplayer/game/poker-holdem', component: SpPokerComponent },
   { path: 'singleplayer/game/go-fish', component: SpGoFishComponent },
   { path: 'singleplayer/game/chess', component: SpChessComponent },
+  { path: 'singleplayer/game/spades', component: SpSpadesComponent },
 
   // Updates
   { path: 'updates', component: UpdatesComponent },

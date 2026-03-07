@@ -86,6 +86,13 @@ export const GAME_SPECIFIC_SOUNDS: Record<string, Record<string, SoundConfig>> =
     'castle': { src: 'board-game/cardPlace2.ogg', volume: 0.5 },
     'promote': { src: 'board-game/chipsCollide2.ogg', volume: 0.8 },
   },
+  'spades': {
+    'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
+    'play': { src: 'board-game/cardPlace1.ogg', volume: 0.6 },
+    'trick': { src: 'board-game/chipsCollide1.ogg', volume: 0.5 },
+    'win': { src: 'board-game/chipsCollide2.ogg', volume: 0.7 },
+    'lose': { src: 'board-game/cardSlide1.ogg', volume: 0.4 },
+  },
   'go-fish': {
     'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
     'ask': { src: 'board-game/cardPlace2.ogg', volume: 0.4 },

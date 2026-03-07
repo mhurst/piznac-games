@@ -125,6 +125,13 @@ export class SpGameSelectComponent {
       description: 'Classic strategy game vs AI!',
       icon: 'castle',
       comingSoon: false
+    },
+    {
+      id: 'spades',
+      name: 'Spades',
+      description: 'Partnership trick-taking — you & AI vs opponents!',
+      icon: 'style',
+      comingSoon: false
     }
   ];
 

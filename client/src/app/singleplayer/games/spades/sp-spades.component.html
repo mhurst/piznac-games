@@ -1,0 +1,49 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Spades</h2>
+
+      <p class="mode-description">
+        Partnership trick-taking (2v2). You and an AI partner vs two AI opponents.
+        Bid the number of tricks you'll win, then play to make your bid.
+        First team to 500 wins!
+      </p>
+
+      <div class="difficulty-select">
+        <label>AI Difficulty</label>
+        <mat-button-toggle-group [(ngModel)]="difficulty" class="toggle-group">
+          <mat-button-toggle value="easy">Easy</mat-button-toggle>
+          <mat-button-toggle value="medium">Medium</mat-button-toggle>
+          <mat-button-toggle value="hard">Hard</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      <span class="stat">Round {{ round }}</span>
+      @if (showNextRound) {
+        <button mat-raised-button color="primary" (click)="nextRound()">
+          Next Round
+        </button>
+      }
+      @if (gameOver) {
+        <button mat-raised-button color="primary" (click)="newGame()">
+          Play Again
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>
