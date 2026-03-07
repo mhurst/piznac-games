@@ -102,8 +102,9 @@ export class BattleshipScene extends Phaser.Scene {
     for (const name of AI_NAMES) {
       this.load.image(`avatar_${name}`, avatarPath + `${name}.png`);
     }
+
     this.load.on('loaderror', (file: any) => {
-      console.warn('Failed to load avatar:', file.key);
+      console.warn('Failed to load asset:', file.key);
     });
   }
 
@@ -315,6 +316,9 @@ export class BattleshipScene extends Phaser.Scene {
     // Draw my board
     this.drawBoard(this.myBoardOffset, 'Your Fleet', true);
 
+    // Draw placed ships on the board during setup
+    this.drawShipCells();
+
     // Draw ship dock
     this.drawShipDock();
 
@@ -417,20 +421,15 @@ export class BattleshipScene extends Phaser.Scene {
 
     SHIPS.forEach((ship) => {
       const isPlaced = !!this.myShips[ship.type];
-      const graphics = this.add.graphics();
-
-      // Ship rectangle in dock
       const shipWidth = ship.size * 20;
       const shipHeight = 25;
 
-      graphics.fillStyle(isPlaced ? this.SHIP_PLACED_COLOR : this.SHIP_COLOR);
-      graphics.fillRoundedRect(dockX, yPos, shipWidth, shipHeight, 4);
-
-      // Border
-      graphics.lineStyle(2, isPlaced ? 0x555555 : 0x666666);
-      graphics.strokeRoundedRect(dockX, yPos, shipWidth, shipHeight, 4);
-
-      this.shipDockGraphics.push(graphics);
+      const dockGraphics = this.add.graphics();
+      const dockCx = dockX + shipWidth / 2;
+      const dockCy = yPos + shipHeight / 2;
+      this.drawProceduralShip(dockGraphics, dockCx, dockCy, shipWidth, shipHeight, ship.type, true, false);
+      if (isPlaced) dockGraphics.setAlpha(0.3);
+      this.shipDockGraphics.push(dockGraphics);
 
       // Ship name
       const nameText = this.add.text(dockX + shipWidth + 10, yPos + shipHeight / 2, ship.name, {
@@ -678,24 +677,414 @@ export class BattleshipScene extends Phaser.Scene {
         continue;
       }
 
-      const color = ship.sunk ? this.SUNK_COLOR : this.SHIP_COLOR;
-      graphics.fillStyle(color);
-
-      for (let i = 0; i < ship.size; i++) {
-        const row = ship.horizontal ? ship.row : ship.row + i;
-        const col = ship.horizontal ? ship.col + i : ship.col;
-
-        graphics.fillRoundedRect(
-          this.myBoardOffset.x + col * CELL_SIZE + 3,
-          this.myBoardOffset.y + row * CELL_SIZE + 3,
-          CELL_SIZE - 6,
-          CELL_SIZE - 6,
-          4
-        );
+      // Calculate ship center and dimensions
+      let cx: number, cy: number, w: number, h: number;
+      if (ship.horizontal) {
+        w = ship.size * CELL_SIZE;
+        h = CELL_SIZE;
+        cx = this.myBoardOffset.x + ship.col * CELL_SIZE + w / 2;
+        cy = this.myBoardOffset.y + ship.row * CELL_SIZE + h / 2;
+      } else {
+        w = ship.size * CELL_SIZE;
+        h = CELL_SIZE;
+        // For vertical, we still compute as if horizontal then swap
+        cx = this.myBoardOffset.x + ship.col * CELL_SIZE + CELL_SIZE / 2;
+        cy = this.myBoardOffset.y + ship.row * CELL_SIZE + (ship.size * CELL_SIZE) / 2;
       }
+
+      this.drawProceduralShip(graphics, cx, cy, w, h, ship.shipType, ship.horizontal, ship.sunk);
     }
 
     this.shipGraphics.push(graphics);
+  }
+
+  private drawProceduralShip(
+    g: Phaser.GameObjects.Graphics,
+    cx: number, cy: number,
+    w: number, h: number,
+    type: string, horizontal: boolean, sunk: boolean
+  ): void {
+    const hullColor = sunk ? 0x8b0000 : 0x5a6a7a;
+    const hullDark = sunk ? 0x6b0000 : 0x3d4a58;
+    const deckColor = sunk ? 0x7a0000 : 0x6b7b8b;
+    const detailColor = sunk ? 0x600000 : 0x2d3748;
+    const metalColor = sunk ? 0x500000 : 0x8899aa;
+
+    // Helper to transform coords from horizontal ship-local to world
+    // Ship-local: x along length (-w/2 to w/2), y across width (-h/2 to h/2)
+    const tx = (lx: number, ly: number): number => horizontal ? cx + lx : cx + ly;
+    const ty = (lx: number, ly: number): number => horizontal ? cy + ly : cy + lx;
+
+    const pad = 3; // Padding from cell edges
+    const hw = w / 2 - pad;  // Half-width along ship length
+    const hh = h / 2 - pad;  // Half-height across ship beam
+
+    // === HULL SHAPE (varies by type) ===
+    switch (type) {
+      case 'carrier':
+        this.drawCarrier(g, tx, ty, hw, hh, hullColor, hullDark, deckColor, detailColor, metalColor);
+        break;
+      case 'battleship':
+        this.drawBattleship(g, tx, ty, hw, hh, hullColor, hullDark, deckColor, detailColor, metalColor);
+        break;
+      case 'cruiser':
+        this.drawCruiser(g, tx, ty, hw, hh, hullColor, hullDark, deckColor, detailColor, metalColor);
+        break;
+      case 'submarine':
+        this.drawSubmarine(g, tx, ty, hw, hh, hullColor, hullDark, deckColor, detailColor, metalColor);
+        break;
+      case 'destroyer':
+        this.drawDestroyer(g, tx, ty, hw, hh, hullColor, hullDark, deckColor, detailColor, metalColor);
+        break;
+    }
+  }
+
+  private drawCarrier(
+    g: Phaser.GameObjects.Graphics,
+    tx: (lx: number, ly: number) => number,
+    ty: (lx: number, ly: number) => number,
+    hw: number, hh: number,
+    hull: number, hullDark: number, deck: number, detail: number, metal: number
+  ): void {
+    // Flat-top carrier hull - wide with angled bow
+    g.fillStyle(hull);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.8), ty(-hw, -hh * 0.8));
+    g.lineTo(tx(hw - 12, -hh * 0.9), ty(hw - 12, -hh * 0.9));
+    g.lineTo(tx(hw, -hh * 0.3), ty(hw, -hh * 0.3));
+    g.lineTo(tx(hw, hh * 0.3), ty(hw, hh * 0.3));
+    g.lineTo(tx(hw - 12, hh * 0.9), ty(hw - 12, hh * 0.9));
+    g.lineTo(tx(-hw, hh * 0.8), ty(-hw, hh * 0.8));
+    g.closePath();
+    g.fillPath();
+
+    // Flight deck (slightly inset)
+    g.fillStyle(deck);
+    g.beginPath();
+    g.moveTo(tx(-hw + 4, -hh * 0.6), ty(-hw + 4, -hh * 0.6));
+    g.lineTo(tx(hw - 16, -hh * 0.7), ty(hw - 16, -hh * 0.7));
+    g.lineTo(tx(hw - 6, -hh * 0.1), ty(hw - 6, -hh * 0.1));
+    g.lineTo(tx(hw - 6, hh * 0.1), ty(hw - 6, hh * 0.1));
+    g.lineTo(tx(hw - 16, hh * 0.7), ty(hw - 16, hh * 0.7));
+    g.lineTo(tx(-hw + 4, hh * 0.6), ty(-hw + 4, hh * 0.6));
+    g.closePath();
+    g.fillPath();
+
+    // Runway center line
+    g.lineStyle(1, metal, 0.3);
+    g.beginPath();
+    g.moveTo(tx(-hw + 10, 0), ty(-hw + 10, 0));
+    g.lineTo(tx(hw - 20, 0), ty(hw - 20, 0));
+    g.strokePath();
+
+    // Planes on deck (small arrow/delta shapes)
+    const planePositions = [-hw * 0.55, -hw * 0.15, hw * 0.25, hw * 0.55];
+    for (let p = 0; p < planePositions.length; p++) {
+      const px = planePositions[p];
+      const py = (p % 2 === 0) ? -hh * 0.3 : hh * 0.3;
+      const ps = hh * 0.4; // plane scale
+
+      // Wings
+      g.fillStyle(0xcccccc, 0.9);
+      g.beginPath();
+      g.moveTo(tx(px + ps * 0.3, py), ty(px + ps * 0.3, py));
+      g.lineTo(tx(px - ps * 0.3, py - ps * 1.4), ty(px - ps * 0.3, py - ps * 1.4));
+      g.lineTo(tx(px - ps * 0.5, py), ty(px - ps * 0.5, py));
+      g.lineTo(tx(px - ps * 0.3, py + ps * 1.4), ty(px - ps * 0.3, py + ps * 1.4));
+      g.closePath();
+      g.fillPath();
+
+      // Fuselage
+      g.fillStyle(0xdddddd);
+      g.beginPath();
+      g.moveTo(tx(px + ps * 1.8, py), ty(px + ps * 1.8, py));
+      g.lineTo(tx(px - ps * 1.2, py - ps * 0.35), ty(px - ps * 1.2, py - ps * 0.35));
+      g.lineTo(tx(px - ps * 1.2, py + ps * 0.35), ty(px - ps * 1.2, py + ps * 0.35));
+      g.closePath();
+      g.fillPath();
+    }
+
+    // Island/control tower (offset to one side)
+    g.fillStyle(detail);
+    const towerX = hw * 0.15;
+    g.fillRect(
+      Math.min(tx(towerX - 8, -hh * 0.9), tx(towerX + 8, -hh * 0.5)),
+      Math.min(ty(towerX - 8, -hh * 0.9), ty(towerX + 8, -hh * 0.5)),
+      Math.abs(tx(towerX + 8, 0) - tx(towerX - 8, 0)) || 16,
+      Math.abs(ty(0, -hh * 0.5) - ty(0, -hh * 0.9)) || 6
+    );
+
+    // Hull outline
+    g.lineStyle(1.5, hullDark, 0.8);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.8), ty(-hw, -hh * 0.8));
+    g.lineTo(tx(hw - 12, -hh * 0.9), ty(hw - 12, -hh * 0.9));
+    g.lineTo(tx(hw, -hh * 0.3), ty(hw, -hh * 0.3));
+    g.lineTo(tx(hw, hh * 0.3), ty(hw, hh * 0.3));
+    g.lineTo(tx(hw - 12, hh * 0.9), ty(hw - 12, hh * 0.9));
+    g.lineTo(tx(-hw, hh * 0.8), ty(-hw, hh * 0.8));
+    g.closePath();
+    g.strokePath();
+  }
+
+  private drawBattleship(
+    g: Phaser.GameObjects.Graphics,
+    tx: (lx: number, ly: number) => number,
+    ty: (lx: number, ly: number) => number,
+    hw: number, hh: number,
+    hull: number, hullDark: number, deck: number, detail: number, metal: number
+  ): void {
+    // Classic warship hull - pointed bow, squared stern
+    g.fillStyle(hull);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.5), ty(-hw, -hh * 0.5));
+    g.lineTo(tx(-hw + 8, -hh * 0.8), ty(-hw + 8, -hh * 0.8));
+    g.lineTo(tx(hw - 20, -hh * 0.85), ty(hw - 20, -hh * 0.85));
+    g.lineTo(tx(hw, 0), ty(hw, 0));
+    g.lineTo(tx(hw - 20, hh * 0.85), ty(hw - 20, hh * 0.85));
+    g.lineTo(tx(-hw + 8, hh * 0.8), ty(-hw + 8, hh * 0.8));
+    g.lineTo(tx(-hw, hh * 0.5), ty(-hw, hh * 0.5));
+    g.closePath();
+    g.fillPath();
+
+    // Deck
+    g.fillStyle(deck);
+    g.beginPath();
+    g.moveTo(tx(-hw + 6, -hh * 0.3), ty(-hw + 6, -hh * 0.3));
+    g.lineTo(tx(hw - 25, -hh * 0.55), ty(hw - 25, -hh * 0.55));
+    g.lineTo(tx(hw - 8, 0), ty(hw - 8, 0));
+    g.lineTo(tx(hw - 25, hh * 0.55), ty(hw - 25, hh * 0.55));
+    g.lineTo(tx(-hw + 6, hh * 0.3), ty(-hw + 6, hh * 0.3));
+    g.closePath();
+    g.fillPath();
+
+    // Gun turrets (3 circles)
+    g.fillStyle(detail);
+    const turretR = hh * 0.35;
+    g.fillCircle(tx(-hw * 0.45, 0), ty(-hw * 0.45, 0), turretR);
+    g.fillCircle(tx(0, 0), ty(0, 0), turretR);
+    g.fillCircle(tx(hw * 0.5, 0), ty(hw * 0.5, 0), turretR);
+
+    // Gun barrels
+    g.lineStyle(2, metal, 0.7);
+    for (const bx of [-hw * 0.45, 0, hw * 0.5]) {
+      g.beginPath();
+      g.moveTo(tx(bx, 0), ty(bx, 0));
+      g.lineTo(tx(bx + turretR * 1.8, 0), ty(bx + turretR * 1.8, 0));
+      g.strokePath();
+    }
+
+    // Bridge structure
+    g.fillStyle(detail);
+    const bw = 10, bh = hh * 0.7;
+    g.fillRect(
+      tx(-hw * 0.1, -bh / 2) < tx(-hw * 0.1, bh / 2) ? tx(-hw * 0.1, -bh / 2) : tx(-hw * 0.1, bh / 2),
+      ty(-hw * 0.1, -bh / 2) < ty(-hw * 0.1, bh / 2) ? ty(-hw * 0.1, -bh / 2) : ty(-hw * 0.1, bh / 2),
+      Math.abs(tx(bw, 0) - tx(0, 0)) || bw,
+      Math.abs(ty(0, bh) - ty(0, 0)) || bh
+    );
+
+    // Hull outline
+    g.lineStyle(1.5, hullDark, 0.8);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.5), ty(-hw, -hh * 0.5));
+    g.lineTo(tx(-hw + 8, -hh * 0.8), ty(-hw + 8, -hh * 0.8));
+    g.lineTo(tx(hw - 20, -hh * 0.85), ty(hw - 20, -hh * 0.85));
+    g.lineTo(tx(hw, 0), ty(hw, 0));
+    g.lineTo(tx(hw - 20, hh * 0.85), ty(hw - 20, hh * 0.85));
+    g.lineTo(tx(-hw + 8, hh * 0.8), ty(-hw + 8, hh * 0.8));
+    g.lineTo(tx(-hw, hh * 0.5), ty(-hw, hh * 0.5));
+    g.closePath();
+    g.strokePath();
+  }
+
+  private drawCruiser(
+    g: Phaser.GameObjects.Graphics,
+    tx: (lx: number, ly: number) => number,
+    ty: (lx: number, ly: number) => number,
+    hw: number, hh: number,
+    hull: number, hullDark: number, deck: number, detail: number, metal: number
+  ): void {
+    // Sleek hull
+    g.fillStyle(hull);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.3), ty(-hw, -hh * 0.3));
+    g.lineTo(tx(-hw + 10, -hh * 0.7), ty(-hw + 10, -hh * 0.7));
+    g.lineTo(tx(hw - 15, -hh * 0.75), ty(hw - 15, -hh * 0.75));
+    g.lineTo(tx(hw, 0), ty(hw, 0));
+    g.lineTo(tx(hw - 15, hh * 0.75), ty(hw - 15, hh * 0.75));
+    g.lineTo(tx(-hw + 10, hh * 0.7), ty(-hw + 10, hh * 0.7));
+    g.lineTo(tx(-hw, hh * 0.3), ty(-hw, hh * 0.3));
+    g.closePath();
+    g.fillPath();
+
+    // Deck stripe
+    g.fillStyle(deck);
+    g.beginPath();
+    g.moveTo(tx(-hw + 12, -hh * 0.25), ty(-hw + 12, -hh * 0.25));
+    g.lineTo(tx(hw - 20, -hh * 0.35), ty(hw - 20, -hh * 0.35));
+    g.lineTo(tx(hw - 10, 0), ty(hw - 10, 0));
+    g.lineTo(tx(hw - 20, hh * 0.35), ty(hw - 20, hh * 0.35));
+    g.lineTo(tx(-hw + 12, hh * 0.25), ty(-hw + 12, hh * 0.25));
+    g.closePath();
+    g.fillPath();
+
+    // Two turrets
+    const turretR = hh * 0.3;
+    g.fillStyle(detail);
+    g.fillCircle(tx(-hw * 0.3, 0), ty(-hw * 0.3, 0), turretR);
+    g.fillCircle(tx(hw * 0.35, 0), ty(hw * 0.35, 0), turretR);
+
+    // Barrels
+    g.lineStyle(1.5, metal, 0.7);
+    for (const bx of [-hw * 0.3, hw * 0.35]) {
+      g.beginPath();
+      g.moveTo(tx(bx, 0), ty(bx, 0));
+      g.lineTo(tx(bx + turretR * 2, 0), ty(bx + turretR * 2, 0));
+      g.strokePath();
+    }
+
+    // Bridge
+    g.fillStyle(detail);
+    g.fillCircle(tx(0, 0), ty(0, 0), hh * 0.25);
+
+    // Hull outline
+    g.lineStyle(1.5, hullDark, 0.8);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.3), ty(-hw, -hh * 0.3));
+    g.lineTo(tx(-hw + 10, -hh * 0.7), ty(-hw + 10, -hh * 0.7));
+    g.lineTo(tx(hw - 15, -hh * 0.75), ty(hw - 15, -hh * 0.75));
+    g.lineTo(tx(hw, 0), ty(hw, 0));
+    g.lineTo(tx(hw - 15, hh * 0.75), ty(hw - 15, hh * 0.75));
+    g.lineTo(tx(-hw + 10, hh * 0.7), ty(-hw + 10, hh * 0.7));
+    g.lineTo(tx(-hw, hh * 0.3), ty(-hw, hh * 0.3));
+    g.closePath();
+    g.strokePath();
+  }
+
+  private drawSubmarine(
+    g: Phaser.GameObjects.Graphics,
+    tx: (lx: number, ly: number) => number,
+    ty: (lx: number, ly: number) => number,
+    hw: number, hh: number,
+    hull: number, hullDark: number, deck: number, detail: number, metal: number
+  ): void {
+    // Rounded oval hull
+    g.fillStyle(hull);
+    g.beginPath();
+    g.moveTo(tx(-hw + 5, 0), ty(-hw + 5, 0));
+    // Top curve
+    g.lineTo(tx(-hw + 15, -hh * 0.7), ty(-hw + 15, -hh * 0.7));
+    g.lineTo(tx(hw - 15, -hh * 0.7), ty(hw - 15, -hh * 0.7));
+    g.lineTo(tx(hw - 5, 0), ty(hw - 5, 0));
+    // Bottom curve
+    g.lineTo(tx(hw - 15, hh * 0.7), ty(hw - 15, hh * 0.7));
+    g.lineTo(tx(-hw + 15, hh * 0.7), ty(-hw + 15, hh * 0.7));
+    g.closePath();
+    g.fillPath();
+
+    // Rounded end caps
+    g.fillCircle(tx(-hw + 15, 0), ty(-hw + 15, 0), hh * 0.7);
+    g.fillCircle(tx(hw - 15, 0), ty(hw - 15, 0), hh * 0.7);
+
+    // Conning tower
+    g.fillStyle(detail);
+    const towerW = hw * 0.3;
+    const towerH = hh * 0.5;
+    g.fillRoundedRect(
+      Math.min(tx(-towerW, -towerH - hh * 0.15), tx(towerW, towerH - hh * 0.15)),
+      Math.min(ty(-towerW, -towerH - hh * 0.15), ty(towerW, towerH - hh * 0.15)),
+      Math.abs(tx(towerW * 2, 0) - tx(0, 0)) || towerW * 2,
+      Math.abs(ty(0, towerH * 2) - ty(0, 0)) || towerH * 2,
+      3
+    );
+
+    // Periscope
+    g.lineStyle(2, metal, 0.8);
+    g.beginPath();
+    g.moveTo(tx(towerW * 0.3, -towerH - hh * 0.15), ty(towerW * 0.3, -towerH - hh * 0.15));
+    g.lineTo(tx(towerW * 0.3, -hh * 0.95), ty(towerW * 0.3, -hh * 0.95));
+    g.strokePath();
+
+    // Deck line
+    g.lineStyle(1, deck, 0.5);
+    g.beginPath();
+    g.moveTo(tx(-hw + 18, 0), ty(-hw + 18, 0));
+    g.lineTo(tx(hw - 18, 0), ty(hw - 18, 0));
+    g.strokePath();
+
+    // Hull outline
+    g.lineStyle(1.5, hullDark, 0.8);
+    g.beginPath();
+    g.moveTo(tx(-hw + 5, 0), ty(-hw + 5, 0));
+    g.lineTo(tx(-hw + 15, -hh * 0.7), ty(-hw + 15, -hh * 0.7));
+    g.lineTo(tx(hw - 15, -hh * 0.7), ty(hw - 15, -hh * 0.7));
+    g.lineTo(tx(hw - 5, 0), ty(hw - 5, 0));
+    g.lineTo(tx(hw - 15, hh * 0.7), ty(hw - 15, hh * 0.7));
+    g.lineTo(tx(-hw + 15, hh * 0.7), ty(-hw + 15, hh * 0.7));
+    g.closePath();
+    g.strokePath();
+  }
+
+  private drawDestroyer(
+    g: Phaser.GameObjects.Graphics,
+    tx: (lx: number, ly: number) => number,
+    ty: (lx: number, ly: number) => number,
+    hw: number, hh: number,
+    hull: number, hullDark: number, deck: number, detail: number, metal: number
+  ): void {
+    // Small fast ship - sharp pointed bow
+    g.fillStyle(hull);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.3), ty(-hw, -hh * 0.3));
+    g.lineTo(tx(-hw + 6, -hh * 0.6), ty(-hw + 6, -hh * 0.6));
+    g.lineTo(tx(hw - 12, -hh * 0.7), ty(hw - 12, -hh * 0.7));
+    g.lineTo(tx(hw, 0), ty(hw, 0));
+    g.lineTo(tx(hw - 12, hh * 0.7), ty(hw - 12, hh * 0.7));
+    g.lineTo(tx(-hw + 6, hh * 0.6), ty(-hw + 6, hh * 0.6));
+    g.lineTo(tx(-hw, hh * 0.3), ty(-hw, hh * 0.3));
+    g.closePath();
+    g.fillPath();
+
+    // Deck
+    g.fillStyle(deck);
+    g.beginPath();
+    g.moveTo(tx(-hw + 8, -hh * 0.15), ty(-hw + 8, -hh * 0.15));
+    g.lineTo(tx(hw - 18, -hh * 0.3), ty(hw - 18, -hh * 0.3));
+    g.lineTo(tx(hw - 8, 0), ty(hw - 8, 0));
+    g.lineTo(tx(hw - 18, hh * 0.3), ty(hw - 18, hh * 0.3));
+    g.lineTo(tx(-hw + 8, hh * 0.15), ty(-hw + 8, hh * 0.15));
+    g.closePath();
+    g.fillPath();
+
+    // Single turret
+    const turretR = hh * 0.3;
+    g.fillStyle(detail);
+    g.fillCircle(tx(hw * 0.2, 0), ty(hw * 0.2, 0), turretR);
+
+    // Barrel
+    g.lineStyle(1.5, metal, 0.7);
+    g.beginPath();
+    g.moveTo(tx(hw * 0.2, 0), ty(hw * 0.2, 0));
+    g.lineTo(tx(hw * 0.2 + turretR * 2.2, 0), ty(hw * 0.2 + turretR * 2.2, 0));
+    g.strokePath();
+
+    // Small bridge
+    g.fillStyle(detail);
+    g.fillCircle(tx(-hw * 0.15, 0), ty(-hw * 0.15, 0), hh * 0.22);
+
+    // Hull outline
+    g.lineStyle(1.5, hullDark, 0.8);
+    g.beginPath();
+    g.moveTo(tx(-hw, -hh * 0.3), ty(-hw, -hh * 0.3));
+    g.lineTo(tx(-hw + 6, -hh * 0.6), ty(-hw + 6, -hh * 0.6));
+    g.lineTo(tx(hw - 12, -hh * 0.7), ty(hw - 12, -hh * 0.7));
+    g.lineTo(tx(hw, 0), ty(hw, 0));
+    g.lineTo(tx(hw - 12, hh * 0.7), ty(hw - 12, hh * 0.7));
+    g.lineTo(tx(-hw + 6, hh * 0.6), ty(-hw + 6, hh * 0.6));
+    g.lineTo(tx(-hw, hh * 0.3), ty(-hw, hh * 0.3));
+    g.closePath();
+    g.strokePath();
   }
 
   private drawSunkStrikethroughs(): void {
