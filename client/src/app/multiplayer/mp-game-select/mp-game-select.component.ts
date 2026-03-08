@@ -98,6 +98,12 @@ export class MpGameSelectComponent {
       name: 'Chess',
       description: 'Classic strategy game for 2 players',
       icon: 'castle'
+    },
+    {
+      id: 'gin-rummy',
+      name: 'Gin Rummy',
+      description: 'Form melds to go Gin! 2 players, first to Gin wins.',
+      icon: 'style'
     }
   ];
 

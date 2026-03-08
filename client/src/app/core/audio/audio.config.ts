@@ -93,6 +93,14 @@ export const GAME_SPECIFIC_SOUNDS: Record<string, Record<string, SoundConfig>> =
     'win': { src: 'board-game/chipsCollide2.ogg', volume: 0.7 },
     'lose': { src: 'board-game/cardSlide1.ogg', volume: 0.4 },
   },
+  'gin-rummy': {
+    'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
+    'draw': { src: 'board-game/cardPlace1.ogg', volume: 0.5 },
+    'discard': { src: 'board-game/cardPlace2.ogg', volume: 0.5 },
+    'gin': { src: 'board-game/chipsCollide2.ogg', volume: 0.7 },
+    'win': { src: 'board-game/chipsCollide1.ogg', volume: 0.8 },
+    'lose': { src: 'board-game/cardSlide1.ogg', volume: 0.4 },
+  },
   'go-fish': {
     'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
     'ask': { src: 'board-game/cardPlace2.ogg', volume: 0.4 },

@@ -14,6 +14,7 @@ const Yahtzee = require('./games/yahtzee');
 const Poker = require('./games/poker');
 const GoFish = require('./games/go-fish');
 const Chess = require('./games/chess');
+const GinRummy = require('./games/gin-rummy');
 const { getAIBettingDecision, getAIDrawDecision, getAIVariantChoice, getAIWildChoice, getAIDelay } = require('./games/poker-ai');
 const { validateUsername } = require('./utils/validate-username');
 
@@ -33,7 +34,8 @@ const MAX_PLAYERS = {
   'poker': 6,
   'poker-holdem': 6,
   'go-fish': 4,
-  'chess': 2
+  'chess': 2,
+  'gin-rummy': 2
 };
 
 const ALLOWED_ORIGINS = [
@@ -399,6 +401,8 @@ io.on('connection', (socket) => {
       room.game = new Mancala(room.players[0].id, room.players[1].id);
     } else if (room.gameType === 'chess') {
       room.game = new Chess(room.players[0].id, room.players[1].id);
+    } else if (room.gameType === 'gin-rummy') {
+      room.game = new GinRummy(room.players[0].id, room.players[1].id);
     }
 
     // Emit directly to both players (with player-specific state for Battleship)
@@ -547,6 +551,10 @@ io.on('connection', (socket) => {
     else if (room.gameType === 'go-fish') {
       result = room.game.makeMove(socket.id, move);
     }
+    // Handle Gin Rummy moves (draw-stock/draw-discard/discard/gin)
+    else if (room.gameType === 'gin-rummy') {
+      result = room.game.makeMove(socket.id, move);
+    }
     // Handle War flip action
     else if (room.gameType === 'war' && move.type === 'flip') {
       result = room.game.flip(socket.id);
@@ -602,6 +610,13 @@ io.on('connection', (socket) => {
         gotCards: result.gotCards, drewMatch: result.drewMatch,
         cardsGiven: result.cardsGiven, anotherTurn: result.anotherTurn,
         newBook: result.newBook,
+        // Gin Rummy
+        gin: result.gin, draw: result.draw, source: result.source, gameOver: result.gameOver,
+        drawnCard: result.drawnCard, discardedCard: result.discardedCard,
+        winnerId: result.winnerId, loserId: result.loserId,
+        points: result.points, scores: result.scores,
+        winnerMelds: result.winnerMelds, loserMelds: result.loserMelds,
+        loserHand: result.loserHand, winnerHand: result.winnerHand,
         // Chess
         special: result.special, inCheck: result.inCheck,
         // Common
@@ -696,6 +711,8 @@ io.on('connection', (socket) => {
         room.game = new GoFish(room.players.map(p => p.id));
       } else if (room.gameType === 'chess') {
         room.game = new Chess(room.players[0].id, room.players[1].id);
+      } else if (room.gameType === 'gin-rummy') {
+        room.game = new GinRummy(room.players[0].id, room.players[1].id);
       }
 
       // Send player-specific state to each player (skip AI bots)
@@ -852,6 +869,8 @@ io.on('connection', (socket) => {
       room.game = new GoFish(room.players.map(p => p.id));
     } else if (room.gameType === 'chess') {
       room.game = new Chess(room.players[0].id, room.players[1].id);
+    } else if (room.gameType === 'gin-rummy') {
+      room.game = new GinRummy(room.players[0].id, room.players[1].id);
     }
 
     rooms.set(roomCode, room);

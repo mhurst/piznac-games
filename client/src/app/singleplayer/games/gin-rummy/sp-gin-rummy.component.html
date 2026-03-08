@@ -1,0 +1,44 @@
+<div class="game-container">
+  @if (!gameStarted) {
+    <div class="setup-panel">
+      <h2>Gin Rummy</h2>
+
+      <p class="mode-description">
+        No-knock variant: form all 10 cards into melds (sets or runs) to go Gin!
+        First player to go Gin wins. Stock exhaustion is a draw.
+      </p>
+
+      <div class="setup-options">
+        <mat-form-field appearance="outline" class="setup-field">
+          <mat-label>Difficulty</mat-label>
+          <mat-select [(ngModel)]="difficulty">
+            <mat-option value="easy">Easy</mat-option>
+            <mat-option value="medium">Medium</mat-option>
+            <mat-option value="hard">Hard</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <button mat-raised-button color="primary" (click)="startGame()" class="start-btn">
+        Start Game
+      </button>
+
+      <button mat-stroked-button (click)="leaveGame()" class="back-btn">
+        Back to Games
+      </button>
+    </div>
+  }
+
+  @if (gameStarted) {
+    <div class="game-controls">
+      @if (gameOver) {
+        <button mat-raised-button color="primary" (click)="newGame()">
+          New Game
+        </button>
+      }
+      <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+    </div>
+  }
+
+  <div #gameCanvas class="game-canvas" [class.hidden]="!gameStarted"></div>
+</div>

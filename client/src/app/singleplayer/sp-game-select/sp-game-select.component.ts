@@ -132,6 +132,13 @@ export class SpGameSelectComponent {
       description: 'Partnership trick-taking — you & AI vs opponents!',
       icon: 'style',
       comingSoon: false
+    },
+    {
+      id: 'gin-rummy',
+      name: 'Gin Rummy',
+      description: 'Form melds to go Gin! First to Gin wins.',
+      icon: 'style',
+      comingSoon: false
     }
   ];
 

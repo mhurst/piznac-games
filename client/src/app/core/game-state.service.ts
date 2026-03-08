@@ -54,6 +54,21 @@ export interface MoveData {
     cardsGiven?: number;
     anotherTurn?: boolean;
     newBook?: string;
+    // Gin Rummy-specific
+    gin?: boolean;
+    draw?: boolean;
+    gameOver?: boolean;
+    source?: string;
+    drawnCard?: any;
+    discardedCard?: any;
+    winnerId?: string;
+    loserId?: string;
+    points?: number;
+    scores?: Record<string, number>;
+    winnerMelds?: any[];
+    loserMelds?: any[];
+    loserHand?: any[];
+    winnerHand?: any[];
     // Chess-specific
     special?: string;
     inCheck?: boolean;
