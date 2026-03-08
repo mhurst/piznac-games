@@ -33,6 +33,7 @@ import { ChessMpComponent } from './multiplayer/games/chess/chess.component';
 import { SpSpadesComponent } from './singleplayer/games/spades/sp-spades.component';
 import { SpGinRummyComponent } from './singleplayer/games/gin-rummy/sp-gin-rummy.component';
 import { GinRummyMpComponent } from './multiplayer/games/gin-rummy/gin-rummy.component';
+import { SpadesMpComponent } from './multiplayer/games/spades/spades.component';
 
 export const routes: Routes = [
   // Home with tabs
@@ -55,6 +56,7 @@ export const routes: Routes = [
   { path: 'multiplayer/game/go-fish/:roomId', component: GoFishMpComponent },
   { path: 'multiplayer/game/chess/:roomId', component: ChessMpComponent },
   { path: 'multiplayer/game/gin-rummy/:roomId', component: GinRummyMpComponent },
+  { path: 'multiplayer/game/spades/:roomId', component: SpadesMpComponent },
 
   // Single player routes
   { path: 'singleplayer', component: SpGameSelectComponent },

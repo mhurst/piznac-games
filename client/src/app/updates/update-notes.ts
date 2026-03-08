@@ -4,17 +4,15 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.7';
+export const APP_VERSION = 'v0.8.8';
 
 export const UPDATE_NOTES: UpdateNote[] = [
   {
     date: '03-08-2026',
-    note: 'New game: Gin Rummy! Single player and multiplayer.',
+    note: 'Spades multiplayer added! Gin Rummy improvements.',
     details: [
-      'Gin Rummy: no-knock variant — first to Gin wins',
-      'Single player with 3 AI difficulty levels',
-      'Multiplayer: 2 players, auto-start',
-      'Drag-and-drop card sorting with live preview',
+      'Spades: 4-player partnership multiplayer',
+      'Gin Rummy: new game with drag-and-drop card sorting',
     ]
   },
   {

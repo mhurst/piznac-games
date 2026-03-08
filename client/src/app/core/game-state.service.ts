@@ -72,6 +72,14 @@ export interface MoveData {
     // Chess-specific
     special?: string;
     inCheck?: boolean;
+    // Spades-specific
+    cardPlayed?: any;
+    trickComplete?: boolean;
+    trickWinner?: number;
+    trickCards?: any[];
+    allBidsIn?: boolean;
+    blindNil?: boolean;
+    roundEnd?: boolean;
   };
 }
 

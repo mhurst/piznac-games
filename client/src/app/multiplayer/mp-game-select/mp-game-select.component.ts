@@ -104,6 +104,12 @@ export class MpGameSelectComponent {
       name: 'Gin Rummy',
       description: 'Form melds to go Gin! 2 players, first to Gin wins.',
       icon: 'style'
+    },
+    {
+      id: 'spades',
+      name: 'Spades',
+      description: 'Partnership trick-taking! 4 players, first to 500 wins.',
+      icon: 'style'
     }
   ];
 

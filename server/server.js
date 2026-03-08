@@ -15,6 +15,7 @@ const Poker = require('./games/poker');
 const GoFish = require('./games/go-fish');
 const Chess = require('./games/chess');
 const GinRummy = require('./games/gin-rummy');
+const Spades = require('./games/spades');
 const { getAIBettingDecision, getAIDrawDecision, getAIVariantChoice, getAIWildChoice, getAIDelay } = require('./games/poker-ai');
 const { validateUsername } = require('./utils/validate-username');
 
@@ -35,7 +36,8 @@ const MAX_PLAYERS = {
   'poker-holdem': 6,
   'go-fish': 4,
   'chess': 2,
-  'gin-rummy': 2
+  'gin-rummy': 2,
+  'spades': 4
 };
 
 const ALLOWED_ORIGINS = [
@@ -379,7 +381,7 @@ io.on('connection', (socket) => {
     });
 
     // For farkle/blackjack/yahtzee/poker/go-fish, don't auto-start — host must click Start Game when 2+ players joined
-    if (room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish') {
+    if (room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish' || room.gameType === 'spades') {
       // Notify all players in the room about the new player
       io.to(roomCode).emit('player-joined', { players: room.players, maxPlayers });
       console.log(`${name} joined ${room.gameType} room ${roomCode} (${room.players.length}/${maxPlayers})`);
@@ -424,7 +426,7 @@ io.on('connection', (socket) => {
   socket.on('start-game', ({ roomCode, aiCount, playerChips }) => {
     const room = rooms.get(roomCode);
     if (!room) return;
-    if (room.gameType !== 'farkle' && room.gameType !== 'blackjack' && room.gameType !== 'yahtzee' && room.gameType !== 'poker' && room.gameType !== 'poker-holdem' && room.gameType !== 'go-fish') return;
+    if (room.gameType !== 'farkle' && room.gameType !== 'blackjack' && room.gameType !== 'yahtzee' && room.gameType !== 'poker' && room.gameType !== 'poker-holdem' && room.gameType !== 'go-fish' && room.gameType !== 'spades') return;
     if (room.players[0].id !== socket.id) {
       socket.emit('invalid-move', { message: 'Only the host can start the game' });
       return;
@@ -466,6 +468,8 @@ io.on('connection', (socket) => {
       room.game = new Poker(playerIds, { lockedVariant: 'texas-holdem', aiBots: botIds, chipOverrides });
     } else if (room.gameType === 'go-fish') {
       room.game = new GoFish(playerIds);
+    } else if (room.gameType === 'spades') {
+      room.game = new Spades(playerIds);
     }
 
     room.players.forEach(player => {
@@ -553,6 +557,10 @@ io.on('connection', (socket) => {
     }
     // Handle Gin Rummy moves (draw-stock/draw-discard/discard/gin)
     else if (room.gameType === 'gin-rummy') {
+      result = room.game.makeMove(socket.id, move);
+    }
+    // Handle Spades moves (bid/play/blind-nil/next-round)
+    else if (room.gameType === 'spades') {
       result = room.game.makeMove(socket.id, move);
     }
     // Handle War flip action
@@ -713,6 +721,8 @@ io.on('connection', (socket) => {
         room.game = new Chess(room.players[0].id, room.players[1].id);
       } else if (room.gameType === 'gin-rummy') {
         room.game = new GinRummy(room.players[0].id, room.players[1].id);
+      } else if (room.gameType === 'spades') {
+        room.game = new Spades(room.players.map(p => p.id));
       }
 
       // Send player-specific state to each player (skip AI bots)
@@ -871,6 +881,8 @@ io.on('connection', (socket) => {
       room.game = new Chess(room.players[0].id, room.players[1].id);
     } else if (room.gameType === 'gin-rummy') {
       room.game = new GinRummy(room.players[0].id, room.players[1].id);
+    } else if (room.gameType === 'spades') {
+      room.game = new Spades(room.players.map(p => p.id));
     }
 
     rooms.set(roomCode, room);
@@ -972,7 +984,7 @@ io.on('connection', (socket) => {
         const hasBots = isPoker && room.game && room.game.aiBots && room.game.aiBots.size > 0;
 
         // For farkle/blackjack/yahtzee/poker/go-fish with 3+ players remaining, remove player and continue
-        if ((room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish') && room.players.length > 2) {
+        if ((room.gameType === 'farkle' || room.gameType === 'blackjack' || room.gameType === 'yahtzee' || room.gameType === 'poker' || room.gameType === 'poker-holdem' || room.gameType === 'go-fish' || room.gameType === 'spades') && room.players.length > 2) {
           room.players = room.players.filter(p => p.id !== socket.id);
           if (room.game && room.game.removePlayer) {
             room.game.removePlayer(socket.id);
