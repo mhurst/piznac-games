@@ -28,6 +28,8 @@ export class SpadesScene extends Phaser.Scene {
   private messageBg!: Phaser.GameObjects.Graphics;
   private messageText!: Phaser.GameObjects.Text;
 
+  private pendingState: SpadesVisualState | null = null;
+
   // Callbacks
   public onReady: (() => void) | null = null;
   public onCardClick: ((handIndex: number) => void) | null = null;
@@ -76,6 +78,9 @@ export class SpadesScene extends Phaser.Scene {
     this.removeWhiteBackground();
     this.drawTable();
     this.createMessage();
+    if (this.pendingState) {
+      this.updateState(this.pendingState);
+    }
     if (this.onReady) this.onReady();
   }
 
@@ -246,6 +251,11 @@ export class SpadesScene extends Phaser.Scene {
   // ──── main update ────
 
   public updateState(state: SpadesVisualState): void {
+    if (!this.messageText) {
+      this.pendingState = state;
+      return;
+    }
+    this.pendingState = null;
     this.clearDynamic();
 
     // Draw scores panel

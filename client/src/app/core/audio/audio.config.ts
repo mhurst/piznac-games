@@ -101,6 +101,13 @@ export const GAME_SPECIFIC_SOUNDS: Record<string, Record<string, SoundConfig>> =
     'win': { src: 'board-game/chipsCollide1.ogg', volume: 0.8 },
     'lose': { src: 'board-game/cardSlide1.ogg', volume: 0.4 },
   },
+  'backgammon': {
+    'roll': { src: 'board-game/dieThrow1.ogg', volume: 0.6 },
+    'move': { src: 'board-game/chipsCollide1.ogg', volume: 0.5 },
+    'hit': { src: 'board-game/chipsCollide3.ogg', volume: 0.7 },
+    'bearoff': { src: 'board-game/chipsCollide2.ogg', volume: 0.6 },
+    'win': { src: 'board-game/chipsCollide2.ogg', volume: 0.8 },
+  },
   'go-fish': {
     'deal': { src: 'board-game/cardSlide1.ogg', volume: 0.5 },
     'ask': { src: 'board-game/cardPlace2.ogg', volume: 0.4 },

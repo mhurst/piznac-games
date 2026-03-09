@@ -34,6 +34,8 @@ import { SpSpadesComponent } from './singleplayer/games/spades/sp-spades.compone
 import { SpGinRummyComponent } from './singleplayer/games/gin-rummy/sp-gin-rummy.component';
 import { GinRummyMpComponent } from './multiplayer/games/gin-rummy/gin-rummy.component';
 import { SpadesMpComponent } from './multiplayer/games/spades/spades.component';
+import { SpBackgammonComponent } from './singleplayer/games/backgammon/sp-backgammon.component';
+import { BackgammonMpComponent } from './multiplayer/games/backgammon/backgammon.component';
 
 export const routes: Routes = [
   // Home with tabs
@@ -57,6 +59,7 @@ export const routes: Routes = [
   { path: 'multiplayer/game/chess/:roomId', component: ChessMpComponent },
   { path: 'multiplayer/game/gin-rummy/:roomId', component: GinRummyMpComponent },
   { path: 'multiplayer/game/spades/:roomId', component: SpadesMpComponent },
+  { path: 'multiplayer/game/backgammon/:roomId', component: BackgammonMpComponent },
 
   // Single player routes
   { path: 'singleplayer', component: SpGameSelectComponent },
@@ -77,6 +80,7 @@ export const routes: Routes = [
   { path: 'singleplayer/game/chess', component: SpChessComponent },
   { path: 'singleplayer/game/spades', component: SpSpadesComponent },
   { path: 'singleplayer/game/gin-rummy', component: SpGinRummyComponent },
+  { path: 'singleplayer/game/backgammon', component: SpBackgammonComponent },
 
   // Updates
   { path: 'updates', component: UpdatesComponent },

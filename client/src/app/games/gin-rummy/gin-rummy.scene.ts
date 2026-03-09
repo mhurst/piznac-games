@@ -37,6 +37,8 @@ export class GinRummyScene extends Phaser.Scene {
   private dragMarker!: Phaser.GameObjects.Graphics;
   private readonly HAND_Y = 405;
 
+  private pendingState: GinRummyVisualState | null = null;
+
   // Callbacks
   public onStockClick?: () => void;
   public onDiscardPileClick?: () => void;
@@ -74,6 +76,9 @@ export class GinRummyScene extends Phaser.Scene {
     this.createButtons();
     this.dragMarker = this.add.graphics().setDepth(60).setVisible(false);
     this.setupCardDrag();
+    if (this.pendingState) {
+      this.updateState(this.pendingState);
+    }
     if (this.onReady) this.onReady();
   }
 
@@ -190,6 +195,12 @@ export class GinRummyScene extends Phaser.Scene {
   // --- State Update ---
 
   public updateState(state: GinRummyVisualState): void {
+    if (!this.messageText) {
+      // Scene not ready yet — queue the state for when create() finishes
+      this.pendingState = state;
+      return;
+    }
+    this.pendingState = null;
     this.currentState = state;
     this.clearDynamic();
 

@@ -16,6 +16,7 @@ const GoFish = require('./games/go-fish');
 const Chess = require('./games/chess');
 const GinRummy = require('./games/gin-rummy');
 const Spades = require('./games/spades');
+const Backgammon = require('./games/backgammon');
 const { getAIBettingDecision, getAIDrawDecision, getAIVariantChoice, getAIWildChoice, getAIDelay } = require('./games/poker-ai');
 const { validateUsername } = require('./utils/validate-username');
 
@@ -37,7 +38,8 @@ const MAX_PLAYERS = {
   'go-fish': 4,
   'chess': 2,
   'gin-rummy': 2,
-  'spades': 4
+  'spades': 4,
+  'backgammon': 2
 };
 
 const ALLOWED_ORIGINS = [
@@ -405,6 +407,8 @@ io.on('connection', (socket) => {
       room.game = new Chess(room.players[0].id, room.players[1].id);
     } else if (room.gameType === 'gin-rummy') {
       room.game = new GinRummy(room.players[0].id, room.players[1].id);
+    } else if (room.gameType === 'backgammon') {
+      room.game = new Backgammon(room.players[0].id, room.players[1].id);
     }
 
     // Emit directly to both players (with player-specific state for Battleship)
@@ -563,6 +567,10 @@ io.on('connection', (socket) => {
     else if (room.gameType === 'spades') {
       result = room.game.makeMove(socket.id, move);
     }
+    // Handle Backgammon moves (roll/move/endTurn)
+    else if (room.gameType === 'backgammon') {
+      result = room.game.makeMove(socket.id, move);
+    }
     // Handle War flip action
     else if (room.gameType === 'war' && move.type === 'flip') {
       result = room.game.flip(socket.id);
@@ -627,6 +635,9 @@ io.on('connection', (socket) => {
         loserHand: result.loserHand, winnerHand: result.winnerHand,
         // Chess
         special: result.special, inCheck: result.inCheck,
+        // Backgammon
+        bearOff: result.bearOff, winType: result.winType,
+        type: result.type, turnOver: result.turnOver, noMoves: result.noMoves,
         // Common
         move: result.move, captured: result.captured
       };
@@ -723,6 +734,8 @@ io.on('connection', (socket) => {
         room.game = new GinRummy(room.players[0].id, room.players[1].id);
       } else if (room.gameType === 'spades') {
         room.game = new Spades(room.players.map(p => p.id));
+      } else if (room.gameType === 'backgammon') {
+        room.game = new Backgammon(room.players[0].id, room.players[1].id);
       }
 
       // Send player-specific state to each player (skip AI bots)
@@ -883,6 +896,8 @@ io.on('connection', (socket) => {
       room.game = new GinRummy(room.players[0].id, room.players[1].id);
     } else if (room.gameType === 'spades') {
       room.game = new Spades(room.players.map(p => p.id));
+    } else if (room.gameType === 'backgammon') {
+      room.game = new Backgammon(room.players[0].id, room.players[1].id);
     }
 
     rooms.set(roomCode, room);

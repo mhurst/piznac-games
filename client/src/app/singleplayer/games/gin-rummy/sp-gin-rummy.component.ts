@@ -394,7 +394,7 @@ export class SpGinRummyComponent implements AfterViewInit, OnDestroy {
     };
 
     if (this.phase === 'gameOver') {
-      state.opponentHand = this.aiHand as GinRummyCard[];
+      state.opponentHand = sortHand([...this.aiHand]) as GinRummyCard[];
       if (this.roundOverMelds) {
         state.myMelds = this.roundOverMelds.player;
         state.opponentMelds = this.roundOverMelds.ai;

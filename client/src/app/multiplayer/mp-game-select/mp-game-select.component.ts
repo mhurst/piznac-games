@@ -110,6 +110,12 @@ export class MpGameSelectComponent {
       name: 'Spades',
       description: 'Partnership trick-taking! 4 players, first to 500 wins.',
       icon: 'style'
+    },
+    {
+      id: 'backgammon',
+      name: 'Backgammon',
+      description: 'Classic dice & strategy board game for 2 players!',
+      icon: 'casino'
     }
   ];
 

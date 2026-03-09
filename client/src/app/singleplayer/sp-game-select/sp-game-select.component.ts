@@ -139,6 +139,13 @@ export class SpGameSelectComponent {
       description: 'Form melds to go Gin! First to Gin wins.',
       icon: 'style',
       comingSoon: false
+    },
+    {
+      id: 'backgammon',
+      name: 'Backgammon',
+      description: 'Classic dice & strategy board game vs AI!',
+      icon: 'casino',
+      comingSoon: false
     }
   ];
 

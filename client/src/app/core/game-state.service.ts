@@ -72,6 +72,12 @@ export interface MoveData {
     // Chess-specific
     special?: string;
     inCheck?: boolean;
+    // Backgammon-specific
+    bearOff?: boolean;
+    winType?: 'normal' | 'gammon' | 'backgammon';
+    type?: string;
+    turnOver?: boolean;
+    noMoves?: boolean;
     // Spades-specific
     cardPlayed?: any;
     trickComplete?: boolean;

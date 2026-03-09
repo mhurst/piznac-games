@@ -4,9 +4,19 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.8';
+export const APP_VERSION = 'v0.8.9';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '03-09-2026',
+    note: 'Backgammon added! Card game loading fixes.',
+    details: [
+      'Backgammon: full rules with dice rolling animation, 3 AI difficulties',
+      'Backgammon: multiplayer support for 2 players',
+      'Fixed card games (Gin Rummy, Spades) not loading card images',
+      'Gin Rummy: AI hand now sorted when revealed at end of round',
+    ]
+  },
   {
     date: '03-08-2026',
     note: 'Spades multiplayer added! Gin Rummy improvements.',

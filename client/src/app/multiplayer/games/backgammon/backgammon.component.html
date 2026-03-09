@@ -1,0 +1,16 @@
+<div class="game-container">
+  <div #gameCanvas class="game-canvas"></div>
+
+  <div class="game-controls">
+    @if (gameOver) {
+      @if (!rematchRequested) {
+        <button mat-raised-button color="primary" (click)="requestRematch()">
+          Rematch
+        </button>
+      } @else {
+        <button mat-raised-button disabled>Waiting for opponent...</button>
+      }
+    }
+    <button mat-stroked-button (click)="leaveGame()">Leave Game</button>
+  </div>
+</div>
