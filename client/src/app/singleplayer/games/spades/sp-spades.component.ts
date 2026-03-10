@@ -54,6 +54,7 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
   private aiNames: string[] = [];
   private trickCount = 0;
   private blindNilOffer = false; // true when offering blind nil before showing cards
+  private aiTimeouts: any[] = [];
 
   constructor(
     private router: Router,
@@ -253,7 +254,10 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
 
   private executePlay(seat: number, handIndex: number): void {
     const player = this.players[seat];
-    if (handIndex < 0 || handIndex >= player.hand.length) return;
+    if (handIndex < 0 || handIndex >= player.hand.length) {
+      this.isProcessing = false;
+      return;
+    }
     const card = player.hand.splice(handIndex, 1)[0];
 
     // Track void detection
@@ -274,9 +278,10 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
     this.audio.playGame('spades', 'play');
 
     if (this.currentTrick.length === 4) {
-      // Trick complete
+      // Trick complete — keep isProcessing true until resolved
       this.updateScene('');
-      setTimeout(() => this.resolveTrick(), 800);
+      const t = setTimeout(() => this.resolveTrick(), 800);
+      this.aiTimeouts.push(t);
     } else {
       this.currentPlayer = (this.currentPlayer + 1) % 4;
       this.isProcessing = false;
@@ -304,13 +309,17 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.isProcessing = false;
+    // Keep isProcessing = true during the inter-trick delay to prevent
+    // the human from playing during the "wins the trick!" message,
+    // which would start a duplicate AI chain and corrupt state.
     this.updateScene(`${this.players[winner].name} wins the trick!`);
 
-    setTimeout(() => {
+    const t = setTimeout(() => {
+      this.isProcessing = false;
       this.updateScene('');
       this.processAITurnIfNeeded();
     }, 1000);
+    this.aiTimeouts.push(t);
   }
 
   private trickWinner(trick: TrickCard[]): number {
@@ -408,7 +417,8 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
     this.updateScene('');
 
     // Check win condition
-    setTimeout(() => this.checkWinCondition(), 100);
+    const t = setTimeout(() => this.checkWinCondition(), 100);
+    this.aiTimeouts.push(t);
   }
 
   private checkWinCondition(): void {
@@ -446,13 +456,14 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
     const p = this.players[this.currentPlayer];
     if (!p.isAI) return;
 
-    setTimeout(() => {
+    const t = setTimeout(() => {
       if (this.phase === 'bidding') {
         this.doAIBid(this.currentPlayer);
       } else if (this.phase === 'playing') {
         this.doAIPlay(this.currentPlayer);
       }
     }, getAIDelay());
+    this.aiTimeouts.push(t);
   }
 
   private buildAIContext(seat: number): AIContext {
@@ -482,7 +493,10 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
   }
 
   private doAIPlay(seat: number): void {
-    if (this.phase !== 'playing') return;
+    if (this.phase !== 'playing') {
+      this.isProcessing = false;
+      return;
+    }
     this.isProcessing = true;
 
     const ctx = this.buildAIContext(seat);
@@ -495,7 +509,10 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
     if (idx === -1) {
       // Fallback — play first legal card
       const legal = this.getLegalPlaysForPlayer(seat);
-      if (legal.length === 0) return;
+      if (legal.length === 0) {
+        this.isProcessing = false;
+        return;
+      }
       const fallbackIdx = this.players[seat].hand.findIndex(
         c => c.suit === legal[0].suit && c.value === legal[0].value
       );
@@ -568,15 +585,23 @@ export class SpSpadesComponent implements AfterViewInit, OnDestroy {
   }
 
   newGame(): void {
+    this.clearAITimeouts();
     this.scene.resetGame();
     this.startGame();
   }
 
   leaveGame(): void {
+    this.clearAITimeouts();
     this.router.navigate(['/'], { queryParams: { tab: 'sp' } });
   }
 
+  private clearAITimeouts(): void {
+    this.aiTimeouts.forEach(t => clearTimeout(t));
+    this.aiTimeouts = [];
+  }
+
   ngOnDestroy(): void {
+    this.clearAITimeouts();
     if (this.phaserGame) this.phaserGame.destroy(true);
   }
 }
