@@ -64,7 +64,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
   @HostListener('window:scroll')
   onWindowScroll(): void {
-    this.headerCollapsed = window.scrollY > 5;
+    if (!this.headerCollapsed && window.scrollY > 50) {
+      this.headerCollapsed = true;
+    } else if (this.headerCollapsed && window.scrollY < 10) {
+      this.headerCollapsed = false;
+    }
   }
 
   ngOnInit(): void {
