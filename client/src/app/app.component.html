@@ -1,5 +1,5 @@
 <div class="app-container">
-  <header class="app-header">
+  <header class="app-header" [class.collapsed]="headerCollapsed">
     <h1 class="title" (click)="goHome()">PIZNAC GAMES</h1>
 
     <nav class="main-nav">
@@ -40,7 +40,7 @@
   </header>
 
   @if (!betaDismissed) {
-    <div class="beta-banner">
+    <div class="beta-banner" [class.collapsed]="headerCollapsed">
       <div class="beta-banner-content" (click)="viewUpdates()">
         <span class="beta-tag">BETA</span><span class="version-tag">{{ appVersion }}</span>
         <span class="beta-notes">{{ latestNote }}</span>

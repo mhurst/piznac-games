@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -36,6 +36,9 @@ export class AppComponent implements OnInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   private challengeDialogOpen = false;
 
+  // Header collapse on scroll
+  headerCollapsed = false;
+
   // Beta banner
   betaDismissed = false;
   latestNote = UPDATE_NOTES[0].date + ' — ' + UPDATE_NOTES[0].note;
@@ -58,6 +61,11 @@ export class AppComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private router: Router
   ) {}
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    this.headerCollapsed = window.scrollY > 5;
+  }
 
   ngOnInit(): void {
     this.checkBetaBanner();

@@ -13,6 +13,51 @@
   padding: 20px 32px;
   background: #16213e;
   border-bottom: 2px solid #0f3460;
+  transition: padding 0.3s ease;
+
+  &.collapsed {
+    padding: 2px 24px;
+
+    .title {
+      font-size: 1rem;
+      letter-spacing: 1px;
+    }
+
+    .main-nav a {
+      padding: 2px 8px;
+
+      span {
+        display: none;
+      }
+    }
+
+    .sound-btn mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    .user-info {
+      padding: 2px 2px 2px 8px;
+      gap: 4px;
+
+      .user-name {
+        display: none;
+      }
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+
+      .logout-btn {
+        width: 28px;
+        height: 28px;
+        line-height: 28px;
+      }
+    }
+  }
 }
 
 .title {
@@ -24,7 +69,7 @@
   background-clip: text;
   letter-spacing: 4px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: font-size 0.3s ease, letter-spacing 0.3s ease, opacity 0.2s;
 
   &:hover {
     opacity: 0.8;
@@ -43,7 +88,11 @@
     border-radius: 8px;
     color: #888;
     text-decoration: none;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+
+    span {
+      transition: opacity 0.2s ease;
+    }
 
     mat-icon {
       font-size: 20px;
@@ -93,6 +142,7 @@
   padding: 8px 8px 8px 16px;
   border-radius: 20px;
   border: 1px solid rgba(#e94560, 0.3);
+  transition: padding 0.3s ease;
 
   mat-icon {
     color: #e94560;
@@ -133,6 +183,15 @@
   padding: 8px 32px;
   background: linear-gradient(90deg, rgba(#e94560, 0.15), rgba(#0f3460, 0.3));
   border-bottom: 1px solid rgba(#e94560, 0.25);
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  max-height: 50px;
+  overflow: hidden;
+
+  &.collapsed {
+    max-height: 0;
+    padding: 0 32px;
+    opacity: 0;
+  }
 }
 
 .beta-banner-content {
