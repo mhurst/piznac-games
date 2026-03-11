@@ -243,7 +243,7 @@ export class SpBackgammonComponent implements AfterViewInit, OnDestroy {
     const multiplier = this.winType === 'backgammon' ? 3 : this.winType === 'gammon' ? 2 : 1;
 
     if (this.players(winnerColor) === 'player') {
-      this.winner = 'You';
+      this.winner = 'YOU';
       this.playerScore += multiplier;
       this.audio.playGame('backgammon', 'win');
     } else {

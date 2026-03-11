@@ -409,27 +409,32 @@ export class BackgammonScene extends Phaser.Scene {
     const centerY = BOARD_Y + BOARD_H / 2;
 
     const remaining = [...this.state.remainingDice];
-    const allDice = this.state.dice[0] === this.state.dice[1]
-      ? [this.state.dice[0], this.state.dice[0], this.state.dice[0], this.state.dice[0]]
-      : [this.state.dice[0], this.state.dice[1]];
+    const allDice = [this.state.dice[0], this.state.dice[1]];
+    const isDoubles = allDice[0] === allDice[1];
 
-    // Mark each die as used or available by matching against remaining values
+    // For doubles: show 2 dice, dim based on how many of the 4 moves remain
+    // For non-doubles: dim each die individually when its value is used
     const usedFlags: boolean[] = [];
-    const remainCopy = [...remaining];
-    for (const die of allDice) {
-      const idx = remainCopy.indexOf(die);
-      if (idx !== -1) {
-        usedFlags.push(false); // still available
-        remainCopy.splice(idx, 1);
-      } else {
-        usedFlags.push(true); // used up
+    if (isDoubles) {
+      const movesLeft = remaining.length; // 0-4
+      usedFlags.push(movesLeft < 1); // die 1 dims when 0 moves left
+      usedFlags.push(movesLeft < 2); // die 2 dims when <2 moves left
+    } else {
+      const remainCopy = [...remaining];
+      for (const die of allDice) {
+        const idx = remainCopy.indexOf(die);
+        if (idx !== -1) {
+          usedFlags.push(false);
+          remainCopy.splice(idx, 1);
+        } else {
+          usedFlags.push(true);
+        }
       }
     }
 
-    const totalDice = allDice.length;
-    const startX = centerX - (totalDice * 25) / 2;
+    const startX = centerX - (2 * 25) / 2;
 
-    for (let i = 0; i < totalDice; i++) {
+    for (let i = 0; i < 2; i++) {
       const dx = startX + i * 30 + 12;
       const dy = centerY;
       const val = allDice[i];
@@ -458,8 +463,7 @@ export class BackgammonScene extends Phaser.Scene {
 
     const centerX = BOARD_X + BOARD_W / 2;
     const centerY = BOARD_Y + BOARD_H / 2;
-    const isDoubles = finalD1 === finalD2;
-    const diceCount = isDoubles ? 4 : 2;
+    const diceCount = 2;
 
     let frame = 0;
     const totalFrames = 8;
@@ -474,7 +478,7 @@ export class BackgammonScene extends Phaser.Scene {
         // Random value for tumbling, final value on last frame
         const isFinal = frame >= totalFrames;
         const val = isFinal
-          ? (isDoubles ? finalD1 : (i === 0 ? finalD1 : finalD2))
+          ? (i === 0 ? finalD1 : finalD2)
           : Math.ceil(Math.random() * 6);
 
         // Wobble offset for tumbling effect
