@@ -18,7 +18,27 @@
 
     <div class="recent-section">
       <h3>Recent Games</h3>
-      <p class="coming-soon">Coming soon...</p>
+
+      @if (recent.length === 0) {
+        <p class="empty-hint">No recent games yet — jump in and play!</p>
+      } @else {
+        <div class="recent-list">
+          @for (game of recent; track game.playedAt) {
+            <button class="recent-card" (click)="playGame(game)">
+              <div class="game-icon">
+                <mat-icon>{{ game.icon }}</mat-icon>
+              </div>
+              <div class="game-name">{{ game.name }}</div>
+              <div class="game-meta">
+                <span class="mode-badge" [class.mp]="game.mode === 'mp'">
+                  {{ game.mode === 'sp' ? 'Solo' : 'Multi' }}
+                </span>
+                <span class="time-ago">{{ timeAgo(game.playedAt) }}</span>
+              </div>
+            </button>
+          }
+        </div>
+      }
     </div>
   </div>
 </div>

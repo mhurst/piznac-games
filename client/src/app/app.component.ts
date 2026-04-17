@@ -11,6 +11,7 @@ import { ChallengeService, Challenge } from './core/challenge.service';
 import { LobbyService } from './core/lobby.service';
 import { PresenceService } from './core/presence.service';
 import { AudioService } from './core/audio/audio.service';
+import { RecentGamesService } from './core/recent-games.service';
 import { NameDialogComponent } from './shared/name-dialog/name-dialog.component';
 import { ChallengeDialogComponent, ChallengeDialogResult } from './shared/challenge-dialog/challenge-dialog.component';
 import { UPDATE_NOTES, APP_VERSION } from './updates/update-notes';
@@ -59,7 +60,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private presenceService: PresenceService,
     private audioService: AudioService,
     private dialog: MatDialog,
-    private router: Router
+    private router: Router,
+    private recentGamesService: RecentGamesService
   ) {}
 
   @HostListener('window:scroll')

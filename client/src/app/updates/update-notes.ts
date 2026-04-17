@@ -4,9 +4,18 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.12';
+export const APP_VERSION = 'v0.8.13';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '04-17-2026',
+    note: 'Home page now shows your 4 most recent games.',
+    details: [
+      'Recent games tracked per device (localStorage) via router events',
+      'Click any card to jump back into that game',
+      '4-column card grid, drops to 2 columns on narrow screens',
+    ]
+  },
   {
     date: '04-17-2026',
     note: 'Wordle added! Guess the 5-letter word in 6 tries.',
