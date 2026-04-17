@@ -1,0 +1,87 @@
+<div class="game-container">
+  @if (loading) {
+    <div class="loading-panel">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading word list...</p>
+    </div>
+  } @else if (errorMessage) {
+    <div class="error-panel">
+      <p>{{ errorMessage }}</p>
+      <button mat-stroked-button (click)="leaveGame()">Back to Games</button>
+    </div>
+  } @else if (view === 'menu') {
+    <div class="menu-panel">
+      <h1 class="title">ANAGRAMS</h1>
+      <p class="subtitle">7 letters — find as many words as you can.</p>
+
+      <div class="mode-cards">
+        <button class="mode-card classic" (click)="selectMode('classic')">
+          <div class="mode-icon">
+            <mat-icon>timer</mat-icon>
+          </div>
+          <h2>Classic</h2>
+          <p class="mode-desc">2-minute sprint. Rack up as many words as you can in one round.</p>
+          <div class="high-score">Best: {{ highScoreClassic }}</div>
+        </button>
+
+        <button class="mode-card text-twist" (click)="selectMode('text-twist')">
+          <div class="mode-icon">
+            <mat-icon>all_inclusive</mat-icon>
+          </div>
+          <h2>Text Twist</h2>
+          <p class="mode-desc">2:30 per round. Find a 7-letter word to advance. How long can you last?</p>
+          <div class="high-score">Best: {{ highScoreTextTwist }}</div>
+        </button>
+      </div>
+
+      <button mat-stroked-button class="back-btn" (click)="leaveGame()">Back to Games</button>
+    </div>
+  } @else {
+    <div #gameCanvas class="game-canvas"></div>
+
+    <div class="rules-panel">
+      @if (mode === 'classic') {
+        <h3>How to Play — Classic</h3>
+        <div class="rules-grid">
+          <div class="rule-block">
+            <h4>Objective</h4>
+            <p>You have <strong>2:00</strong> to find as many valid words as possible from the 7 letters. Beat your high score!</p>
+          </div>
+          <div class="rule-block">
+            <h4>Scoring</h4>
+            <p>3-letter word = 1 pt &nbsp;•&nbsp; 4 = 2 &nbsp;•&nbsp; 5 = 3 &nbsp;•&nbsp; 6 = 4 &nbsp;•&nbsp; 7 = 5 + <strong>3 pt bonus</strong></p>
+          </div>
+          <div class="rule-block">
+            <h4>Controls</h4>
+            <p>Click tiles or <strong>type</strong> letters • <strong>Enter</strong> to submit • <strong>Backspace</strong> to erase • click a letter to remove it • <strong>Shuffle</strong> rearranges tiles</p>
+          </div>
+        </div>
+      } @else {
+        <h3>How to Play — Text Twist</h3>
+        <div class="rules-grid">
+          <div class="rule-block">
+            <h4>Objective</h4>
+            <p>Find a <strong>7-letter word</strong> before time runs out to clear the round and advance. Keep going as long as you can.</p>
+          </div>
+          <div class="rule-block">
+            <h4>Rounds</h4>
+            <p>Each round gives you <strong>2:30</strong>. Shorter words score points too and carry over round-to-round. Timer resets each new round.</p>
+          </div>
+          <div class="rule-block">
+            <h4>Scoring</h4>
+            <p>3 = 1 pt &nbsp;•&nbsp; 4 = 2 &nbsp;•&nbsp; 5 = 3 &nbsp;•&nbsp; 6 = 4 &nbsp;•&nbsp; 7 = 5 + <strong>3 pt bonus</strong></p>
+          </div>
+          <div class="rule-block">
+            <h4>Controls</h4>
+            <p>Click tiles or <strong>type</strong> letters • <strong>Enter</strong> submits • <strong>Backspace</strong> erases • <strong>Shuffle</strong> rearranges tiles</p>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="game-controls">
+      <button mat-stroked-button (click)="backToMenu()">Back to Menu</button>
+      <button mat-stroked-button (click)="leaveGame()">Back to Games</button>
+    </div>
+  }
+</div>

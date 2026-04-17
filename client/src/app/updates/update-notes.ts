@@ -4,9 +4,20 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.9';
+export const APP_VERSION = 'v0.8.10';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '04-16-2026',
+    note: 'Anagrams added! Two modes: Classic and Text Twist.',
+    details: [
+      'Classic: 2-minute sprint — find as many words as you can',
+      'Text Twist: find a 7-letter word each round to advance, cumulative scoring',
+      'ENABLE1 dictionary (172,823 words) for validation',
+      'Per-mode high scores saved to localStorage',
+      'Click tiles or type letters — full keyboard support (Enter, Backspace, Esc)',
+    ]
+  },
   {
     date: '03-09-2026',
     note: 'Backgammon added! Card game loading fixes.',

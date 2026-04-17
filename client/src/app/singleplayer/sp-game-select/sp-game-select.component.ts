@@ -146,6 +146,13 @@ export class SpGameSelectComponent {
       description: 'Classic dice & strategy board game vs AI!',
       icon: 'casino',
       comingSoon: false
+    },
+    {
+      id: 'anagrams',
+      name: 'Anagrams',
+      description: '7 letters — find as many words as you can!',
+      icon: 'abc',
+      comingSoon: false
     }
   ];
 
