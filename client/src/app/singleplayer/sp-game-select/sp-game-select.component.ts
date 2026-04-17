@@ -160,6 +160,13 @@ export class SpGameSelectComponent {
       description: 'Slide and merge tiles to reach 2048!',
       icon: 'grid_4x4',
       comingSoon: false
+    },
+    {
+      id: 'wordle',
+      name: 'Wordle',
+      description: 'Guess the 5-letter word in 6 tries.',
+      icon: 'abc',
+      comingSoon: false
     }
   ];
 

@@ -1,0 +1,77 @@
+<div class="game-container">
+  @if (loading) {
+    <div class="loading-panel">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading word lists...</p>
+    </div>
+  } @else if (errorMessage) {
+    <div class="error-panel">
+      <p>{{ errorMessage }}</p>
+      <button mat-stroked-button (click)="leaveGame()">Back to Games</button>
+    </div>
+  } @else {
+    <div #gameCanvas class="game-canvas"></div>
+
+    <div class="stats-panel">
+      <h3>Stats</h3>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-value">{{ stats.played }}</div>
+          <div class="stat-label">Played</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">{{ winPct }}</div>
+          <div class="stat-label">Win %</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">{{ stats.currentStreak }}</div>
+          <div class="stat-label">Current Streak</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">{{ stats.maxStreak }}</div>
+          <div class="stat-label">Max Streak</div>
+        </div>
+      </div>
+
+      <h4>Guess Distribution</h4>
+      <div class="distribution">
+        @for (count of stats.distribution; track $index) {
+          <div class="dist-row">
+            <div class="dist-label">{{ $index + 1 }}</div>
+            <div class="dist-bar-wrap">
+              <div class="dist-bar" [style.width.%]="count === 0 ? 4 : distPercent(count)">
+                <span class="dist-count">{{ count }}</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="rules-panel">
+      <h3>How to Play — Wordle</h3>
+      <div class="rules-grid">
+        <div class="rule-block">
+          <h4>Objective</h4>
+          <p>Guess the secret 5-letter word in <strong>6 tries</strong>.</p>
+        </div>
+        <div class="rule-block">
+          <h4>Colors</h4>
+          <p><span class="swatch correct">&nbsp;</span> right letter, right spot &nbsp;•&nbsp; <span class="swatch present">&nbsp;</span> in the word, wrong spot &nbsp;•&nbsp; <span class="swatch absent">&nbsp;</span> not in the word</p>
+        </div>
+        <div class="rule-block">
+          <h4>Controls</h4>
+          <p>Type letters on your keyboard or click the on-screen keys. <strong>Enter</strong> to submit, <strong>Backspace</strong> to erase.</p>
+        </div>
+        <div class="rule-block">
+          <h4>Tip</h4>
+          <p>Guesses must be valid words. A good first guess uses <strong>common vowels and consonants</strong> (ADIEU, CRANE, SLATE).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="game-controls">
+      <button mat-stroked-button (click)="leaveGame()">Back to Games</button>
+    </div>
+  }
+</div>

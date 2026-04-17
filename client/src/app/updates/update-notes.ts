@@ -4,9 +4,21 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.11';
+export const APP_VERSION = 'v0.8.12';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '04-17-2026',
+    note: 'Wordle added! Guess the 5-letter word in 6 tries.',
+    details: [
+      'Standard 6x5 grid with color feedback (correct / present / absent)',
+      'Proper duplicate-letter evaluation',
+      'On-screen keyboard mirrors physical keyboard state',
+      '1,178 common answer words (Google 10k ∩ ENABLE1)',
+      '8,636 valid guesses',
+      'Stats tracked in localStorage: played, win %, streaks, guess distribution',
+    ]
+  },
   {
     date: '04-16-2026',
     note: '2048 added! Slide and merge tiles to reach 2048.',
