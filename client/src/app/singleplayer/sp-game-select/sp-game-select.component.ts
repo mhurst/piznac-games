@@ -153,6 +153,13 @@ export class SpGameSelectComponent {
       description: '7 letters — find as many words as you can!',
       icon: 'abc',
       comingSoon: false
+    },
+    {
+      id: '2048',
+      name: '2048',
+      description: 'Slide and merge tiles to reach 2048!',
+      icon: 'grid_4x4',
+      comingSoon: false
     }
   ];
 

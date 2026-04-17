@@ -37,6 +37,7 @@ import { SpadesMpComponent } from './multiplayer/games/spades/spades.component';
 import { SpBackgammonComponent } from './singleplayer/games/backgammon/sp-backgammon.component';
 import { BackgammonMpComponent } from './multiplayer/games/backgammon/backgammon.component';
 import { SpAnagramsComponent } from './singleplayer/games/anagrams/sp-anagrams.component';
+import { SpGame2048Component } from './singleplayer/games/game-2048/sp-game-2048.component';
 
 export const routes: Routes = [
   // Home with tabs
@@ -83,6 +84,7 @@ export const routes: Routes = [
   { path: 'singleplayer/game/gin-rummy', component: SpGinRummyComponent },
   { path: 'singleplayer/game/backgammon', component: SpBackgammonComponent },
   { path: 'singleplayer/game/anagrams', component: SpAnagramsComponent },
+  { path: 'singleplayer/game/2048', component: SpGame2048Component },
 
   // Updates
   { path: 'updates', component: UpdatesComponent },

@@ -1,0 +1,29 @@
+<div class="game-container">
+  <div #gameCanvas class="game-canvas"></div>
+
+  <div class="rules-panel">
+    <h3>How to Play — 2048</h3>
+    <div class="rules-grid">
+      <div class="rule-block">
+        <h4>Objective</h4>
+        <p>Slide tiles to combine matching numbers. Reach the <strong>2048</strong> tile to win — but you can keep going!</p>
+      </div>
+      <div class="rule-block">
+        <h4>How Tiles Merge</h4>
+        <p>When two tiles of the same number touch in the direction you slide, they merge into one with their combined value. <strong>2+2 = 4</strong>, <strong>4+4 = 8</strong>, and so on.</p>
+      </div>
+      <div class="rule-block">
+        <h4>Scoring</h4>
+        <p>Each merge adds the new tile's value to your score. Every move spawns a new 2 (or sometimes a 4). Game ends when the board fills and no merges are possible.</p>
+      </div>
+      <div class="rule-block">
+        <h4>Controls</h4>
+        <p><strong>Arrow keys</strong> or <strong>W A S D</strong> to slide tiles. All tiles move as far as they can in that direction.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="game-controls">
+    <button mat-stroked-button (click)="leaveGame()">Back to Games</button>
+  </div>
+</div>

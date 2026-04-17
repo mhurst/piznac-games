@@ -4,9 +4,19 @@ export interface UpdateNote {
   details?: string[]; // Optional bullet points
 }
 
-export const APP_VERSION = 'v0.8.10';
+export const APP_VERSION = 'v0.8.11';
 
 export const UPDATE_NOTES: UpdateNote[] = [
+  {
+    date: '04-16-2026',
+    note: '2048 added! Slide and merge tiles to reach 2048.',
+    details: [
+      'Classic 4x4 board with arrow keys or WASD controls',
+      'Keep-playing option past 2048 for high-score chasing',
+      'Best score saved to localStorage',
+      'Rules panel below the board',
+    ]
+  },
   {
     date: '04-16-2026',
     note: 'Anagrams added! Two modes: Classic and Text Twist.',
